@@ -3,4 +3,5 @@
 **/desktop.ini
 MiniSeg_GUI.pyproject.user
 
-resources/
+resources/*
+!resources/generate.ps1
