@@ -3,5 +3,6 @@
 **/desktop.ini
 MiniSeg_GUI.pyproject.user
 
+.idea/
 resources/*
 !resources/generate.ps1
