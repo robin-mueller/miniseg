@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>include/qml/ParameterField.qml</file>
+        <file>include/qml/Parameters.qml</file>
+        <file>include/qml/SetpointSlider.qml</file>
+    </qresource>
+</RCC>
