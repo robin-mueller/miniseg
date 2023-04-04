@@ -6,11 +6,11 @@ from threading import Lock
 from collections import UserDict
 
 
-class BTDeviceNotConnected(Exception):
+class BTRemoteNotConnected(Exception):
     pass
 
 
-class BTDevice(UserDict):
+class BTRemote(UserDict):
     def __init__(self, address: str):
         super().__init__()
         self._address = address
@@ -38,9 +38,13 @@ class BTDevice(UserDict):
     def publish_data(self):
         with self._connect_lock:
             if self._connected:
-                self._socket.send(json.dumps(self.data).encode())
+                try:
+                    self._socket.send(json.dumps(self.data).encode())
+                except TimeoutError as e:
+                    self.disconnect()
+                    raise e
             else:
-                raise BTDeviceNotConnected("Instance method connect() was never called!")
+                raise BTRemoteNotConnected("Instance method connect() was never called!")
         
     @staticmethod
     def discover():
@@ -52,7 +56,7 @@ class BTDevice(UserDict):
         
         
 if __name__ == "__main__":
-    device = BTDevice("98:D3:A1:FD:34:63")
+    device = BTRemote("98:D3:A1:FD:34:63")
     device.connect()
     device["TEST"] = 8
     time.sleep(0.5)

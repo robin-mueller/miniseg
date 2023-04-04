@@ -100,15 +100,9 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <widget class="QMenu" name="menuChoose_operating_mode">
-     <property name="title">
-      <string>Choose operating mode</string>
-     </property>
-     <addaction name="actionSlow"/>
-     <addaction name="actionFast"/>
-    </widget>
     <addaction name="actionConnect"/>
-    <addaction name="menuChoose_operating_mode"/>
+    <addaction name="actionDisconnect"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuSetup"/>
    <addaction name="menuMonitoring"/>
@@ -127,23 +121,12 @@
     <string>Connect</string>
    </property>
   </action>
-  <action name="actionSlow">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
+  <action name="actionDisconnect">
+   <property name="enabled">
+    <bool>false</bool>
    </property>
    <property name="text">
-    <string>Slow</string>
-   </property>
-  </action>
-  <action name="actionFast">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Fast</string>
+    <string>Disconnect</string>
    </property>
   </action>
  </widget>
