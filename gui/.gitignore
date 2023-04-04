@@ -4,5 +4,6 @@
 MiniSeg_GUI.pyproject.user
 
 .idea/
+venv/
 resources/*
 !resources/generate.ps1
