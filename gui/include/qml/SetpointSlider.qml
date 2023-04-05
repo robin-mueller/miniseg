@@ -32,7 +32,7 @@ Rectangle {
         property int minorTickWidth: majorTickWidth - 2
         property int majorTickHeight: 16
         property int minorTickHeight: majorTickHeight - 5
-        property int majorLabelFontSize: 16
+        property int majorLabelFontSize: 17
         property int minorLabelFontSize: majorLabelFontSize - 5
         property int labelMargin: handle.height / 2 + (parent.height / 2 - handle.height / 2) / 2
 
@@ -79,15 +79,15 @@ Rectangle {
 
         readonly property int sideMargin: 20
 
-        value: backend.initial_value
+        value: backend.value
+        onValueChanged: backend.value = value
+
         anchors.fill: parent
         stepSize: 1
         from: -tickScale.rangeCentiMeter / 2
         to: tickScale.rangeCentiMeter / 2
         anchors.leftMargin: sideMargin
         anchors.rightMargin: sideMargin
-
-        onValueChanged: backend.value = value
 
         background: Rectangle {
             x: control.leftPadding
@@ -106,7 +106,7 @@ Rectangle {
             implicitWidth: 12
             implicitHeight: 60
             radius: 5
-            color: control.pressed ? Theme.primary : Theme.foreground
+            color: control.pressed ? Theme.dark_foreground : Theme.foreground
         }
     }
 }

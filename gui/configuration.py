@@ -17,18 +17,26 @@ class Theme(QObject):
     @Property(str, constant=True)
     def foreground(self):
         return "#e4e7eb"
+
+    @Property(str, constant=True)
+    def dark_foreground(self):
+        return "#b9c1Cb"
     
     @Property(str, constant=True)
     def background(self):
-        return "#202124"
+        return "#181e25"
 
     @Property(str, constant=True)
     def border(self):
-        return "#3f4042"
+        return "#505153"
+
+#    @Property(str, constant=True)
+#    def primary(self):
+#        return "#ffd4a3"
 
     @Property(str, constant=True)
     def primary(self):
-        return "#8ab4f7"
+        return "#8cdacc"
     
     
 # noinspection PyTypeChecker

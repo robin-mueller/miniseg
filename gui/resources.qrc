@@ -3,5 +3,6 @@
         <file>include/qml/ParameterField.qml</file>
         <file>include/qml/Parameters.qml</file>
         <file>include/qml/SetpointSlider.qml</file>
+        <file>include/qml/Header.qml</file>
     </qresource>
 </RCC>

@@ -3,10 +3,10 @@ import pandas as pd
 
 from typing import Optional
 from pathlib import Path
-from gui.configuration import PARAMETERS
-from gui.include.helper import MonitoringGraph, GraphDict, KeepMenuOpen
-from gui.include.curve_definition import CurveLibrary, CurveDefinition
-from gui.resources.monitoring_window_ui import Ui_MonitoringWindow
+from configuration import PARAMETERS
+from include.helper import MonitoringGraph, GraphDict, KeepMenuOpen
+from include.curve_definition import CurveLibrary, CurveDefinition
+from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QWidget, QMenu, QFileDialog
 from PySide6.QtCore import Qt, QTime

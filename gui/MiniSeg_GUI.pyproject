@@ -1,3 +1,3 @@
 {
-    "files": ["scripts/rcc","include/qml/slider.qml","include/qml/ParameterField.qml","resources/resources.qrc","include/helper.py","include/ui/monitoring_window.ui","include/monitoring_window.py","form.ui","include/qml/Parameters.qml","include/qml/SetpointSlider.qml","main.py","include/qml/dummy/Theme.qml","include/ui/main_window.ui","include/qml/dummy/qmldir","parameters.py","include/widget.py","include/monitoring_curve.py","resources.qrc"]
+    "files": ["resources/resources.qrc","parameters.py","include/ui/monitoring_window.ui","include/widget.py","include/helper.py","resources.qrc","include/ui/main_window.ui","form.ui","include/qml/ParameterField.qml","include/monitoring_curve.py","include/qml/Parameters.qml","include/qml/Header.qml","include/qml/SetpointSlider.qml","include/qml/dummy/qmldir","scripts/rcc","main.py","include/qml/slider.qml","include/monitoring_window.py","include/qml/dummy/Theme.qml","configuration.py"]
 }
