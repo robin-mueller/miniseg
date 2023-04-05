@@ -58,7 +58,8 @@ class MiniSegGUI(QMainWindow):
     
     @Slot(str)
     def on_bluetooth_connection_failed(self, exception_name: str):
-        self.ui.statusbar.removeWidget()
+        self.ui.statusbar.removeWidget(self.bt_connect_label)
+        self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.actionConnect.setEnabled(True)
         self.ui.statusbar.showMessage(f"Connecting failed - {exception_name} occured!", 3000)
     
