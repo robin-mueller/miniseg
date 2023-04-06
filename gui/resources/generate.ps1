@@ -3,6 +3,7 @@
 # !!!
 # Working directory is assumed to be root of gui directory
 # !!!
+
 Write-Output "Running resource generation ..."
 
 # Load Qt resources

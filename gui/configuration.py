@@ -10,7 +10,7 @@ class Parameters(QObject):
 
     @Property(str)
     def default_recording_dir(self):
-        return str(Path.cwd() / "recording")
+        return str(Path(__file__).parent / "recording")
     
 
 class Theme(QObject):
