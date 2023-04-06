@@ -4,7 +4,7 @@
 Set-Location $PSScriptRoot
 
 # Embed interface definition information as a resource for arduino compilation
-$JSON_OBJECT_SIZE = 8  # Json object size on an AVR microchip architecture as used in Arduino UNO
+$JSON_OBJECT_SIZE = 8  # Json object size on an AVR microchip architecture as used in Arduino MEGA
 function CalculateJsonDocSize($arr)
 {
     $nestedSize = 0
@@ -32,8 +32,8 @@ $interfaceHPath = ".\controller\interface.h"
 Set-Content -NoNewline -Path $interfaceHPath -Value "#ifndef INTERFACE_H
 #define INTERFACE_H
 
-#define RX_DOC_SIZE $(CalculateJsonDocSize $interfaceJsonObject.to_device)
-#define TX_DOC_SIZE $(CalculateJsonDocSize $interfaceJsonObject.from_device)
+#define JSON_DOC_SIZE_RX $(CalculateJsonDocSize $interfaceJsonObject.to_device)
+#define JSON_DOC_SIZE_TX $(CalculateJsonDocSize $interfaceJsonObject.from_device)
 
 char interface_json[] = `"$([string]::Concat($interfaceJsonContentString.Trim().Replace(' ', '').Replace('"', '\"')) )`";
 

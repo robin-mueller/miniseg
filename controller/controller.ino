@@ -2,25 +2,37 @@
 #include <ArduinoJson.h>
 #include "interface.h"
 
-StaticJsonDocument<RX_DOC_SIZE> rx_doc;
-StaticJsonDocument<TX_DOC_SIZE> tx_doc;
+#define SERIAL_BUF_SIZE_RX 2048
+
+StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
+StaticJsonDocument<JSON_DOC_SIZE_TX> tx_doc;
+
+char serial_buf_rx[SERIAL_BUF_SIZE_RX];
 
 void setup() {
   Serial.begin(9600);
-    
+  while (!Serial);
 }
 
 void loop() {
   if (Serial.available()) {
-    DeserializationError err = deserializeJson(rx_doc, Serial.readString());
+    // Read from serial
+    int bytes_read = Serial.readBytesUntil('\n', serial_buf_rx, SERIAL_BUF_SIZE_RX);
+    serial_buf_rx[bytes_read] = '\0';
+    if (serial_buf_rx[bytes_read-1] != '}') {
+      Serial.println("Serial receive buffer size exceeded!");
+      return;
+    }
+    
+    // Deserialize receive buffer
+    const DeserializationError err = deserializeJson(rx_doc, serial_buf_rx);
     if (err) {
       Serial.print("Deserialization of received data failed: ");
       Serial.println(err.f_str());
       return;
     }
-    String out;
-    serializeJsonPretty(rx_doc, out);
-    Serial.println(out);
+
+    serializeJsonPretty(rx_doc, Serial);
   }
 
   // Serial.println(Serial.read());

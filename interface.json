@@ -1,5 +1,5 @@
 {
-  "from_device": [],
+  "from_device": ["msg"],
   "to_device": [
     "controller_state",
     {

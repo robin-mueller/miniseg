@@ -22,8 +22,9 @@ class InterfaceBuffer(UserDict):
 
     class SetItemNotAllowedError(Exception):
         def __init__(self, key):
-            super().__init__(f"Calling __setitem__() is only allowed on the lowest level of an InterfaceDict instance, hence only on keys that point to values! "
-                             f"Key '{key}' doesn't point to a value, but rather to a nested InterfaceDict instance.")
+            super().__init__(
+                f"Calling __setitem__() is only allowed on the lowest level of an InterfaceDict instance, hence only on keys that point to values! "
+                f"Key '{key}' doesn't point to a value, but rather to a nested InterfaceDict instance.")
 
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -67,7 +68,8 @@ class InterfaceBuffer(UserDict):
 
     def __setitem__(self, key: str | tuple, value):
         if isinstance(key, str):  # If dict is accessed using a single key
-            assert any([isinstance(value, t) for t in self._valid_value_types]), TypeError(f"Value type has to be one of {self._valid_value_types}.")
+            assert any([isinstance(value, t) for t in self._valid_value_types]), TypeError(
+                f"Value type has to be one of {self._valid_value_types}.")
             if isinstance(self.__getitem__(key), InterfaceBuffer):
                 raise self.SetItemNotAllowedError(key)
             super().__setitem__(key, value)
@@ -137,7 +139,8 @@ class BTDevice:
                 self._connected = True
 
     # noinspection PyUnresolvedReferences
-    def async_connect(self, on_connected_handle: Callable[[], None], on_connection_failed_handle: Callable[[str], None]):
+    def async_connect(self, on_connected_handle: Callable[[], None],
+                      on_connection_failed_handle: Callable[[str], None]):
         self._connect_worker = self._ConnectWorker(self.connect)
         self._connect_worker.connected.connect(on_connected_handle)
         self._connect_worker.connection_failed.connect(on_connection_failed_handle)
@@ -162,7 +165,9 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 try:
-                    self._socket.send(json.dumps(self.tx_buffer, cls=InterfaceBuffer.JSONEncoder).encode())
+                    self._socket.send(
+                        json.dumps(self.tx_buffer, cls=InterfaceBuffer.JSONEncoder, separators=(',', ':')).encode()
+                    )
                 except TimeoutError as e:
                     self.disconnect()
                     raise e
