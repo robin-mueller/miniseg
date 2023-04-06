@@ -1,7 +1,12 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "interface.h"
 
-StaticJsonDocument<256> json_doc;
+// StaticJsonDocument<512> interface_doc;
+// deserializeJson(interface_doc, interface_json);
+// const int RX_BUF_SIZE = required_serial_buffer_size(interface_doc["to_device"].as<JsonArray>());
+
+StaticJsonDocument<256> rx_buf;
 
 void setup() {
   Serial.begin(9600);
@@ -10,14 +15,14 @@ void setup() {
 
 void loop() {
   if (Serial.available()) {
-    DeserializationError err = deserializeJson(json_doc, Serial.readString());
+    DeserializationError err = deserializeJson(rx_buf, Serial.readString());
     if (err) {
       Serial.print("Deserialization of received data failed: ");
       Serial.println(err.f_str());
       return;
     }
     String out;
-    serializeJsonPretty(json_doc, out);
+    serializeJsonPretty(rx_buf, out);
     Serial.println(out);
   }
 
