@@ -53,7 +53,7 @@ class SetpointSlider(QMLWidget):
     value_changed = Signal(int)
 
     def __init__(self, widget_frame: QFrame):
-        self._value = 10
+        self._value = 0
         super().__init__(widget_frame)
 
     @Property(int, notify=value_changed)

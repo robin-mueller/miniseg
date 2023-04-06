@@ -31,12 +31,12 @@ class Theme(QObject):
         return "#505153"
 
 #    @Property(str, constant=True)
-#    def primary(self):
-#        return "#ffd4a3"
+#    def secondary(self):
+#        return "#91a9b6"
 
     @Property(str, constant=True)
     def primary(self):
-        return "#8cdacc"
+        return "#ffe2c2"
     
     
 # noinspection PyTypeChecker
