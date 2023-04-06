@@ -3,13 +3,39 @@
 
 Set-Location $PSScriptRoot
 
-# Embed interface definitions as a resource for arduino compilation
-$InterfaceJsonContent = Get-Content -Path ".\interface.json"
-$InterfaceHPath = ".\controller\interface.h"
-Set-Content -NoNewline -Path $InterfaceHPath -Value "#ifndef INTERFACE_H
+# Embed interface definition information as a resource for arduino compilation
+$JSON_OBJECT_SIZE = 8  # Json object size on an AVR microchip architecture as used in Arduino UNO
+function CalculateJsonDocSize($arr)
+{
+    $nestedSize = 0
+    $members = 0
+    foreach ($item in $arr)
+    {
+        if ($item.GetType().Name -eq "String")
+        {
+            $members++
+        }
+        elseif ($item.GetType().Name -eq "PSCustomObject")
+        {
+            foreach ($property in $item.psobject.Properties)
+            {
+                $members++
+                $nestedSize += CalculateJsonDocSize $property.Value
+            }
+        }
+    }
+    return $members * $JSON_OBJECT_SIZE + $nestedSize
+}
+$interfaceJsonContentString = Get-Content -Path ".\interface.json"
+$interfaceJsonObject = $interfaceJsonContentString | ConvertFrom-Json
+$interfaceHPath = ".\controller\interface.h"
+Set-Content -NoNewline -Path $interfaceHPath -Value "#ifndef INTERFACE_H
 #define INTERFACE_H
 
-char interface_json[] = `"$([string]::Concat($InterfaceJsonContent.Trim().Replace(' ', '').Replace('"', '\"')) )`";
+#define RX_DOC_SIZE $(CalculateJsonDocSize $interfaceJsonObject.to_device)
+#define TX_DOC_SIZE $(CalculateJsonDocSize $interfaceJsonObject.from_device)
+
+char interface_json[] = `"$([string]::Concat($interfaceJsonContentString.Trim().Replace(' ', '').Replace('"', '\"')) )`";
 
 #endif
 "
