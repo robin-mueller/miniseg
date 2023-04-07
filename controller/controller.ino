@@ -1,6 +1,5 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include "interface.h"
+#include "src/interface.hpp"
 
 #define SERIAL_BUF_SIZE_RX 2048
 
@@ -25,7 +24,7 @@ void loop() {
     }
     
     // Deserialize receive buffer
-    const DeserializationError err = deserializeJson(rx_doc, serial_buf_rx);
+    const DeserializationError err = deserializeJson(rx_doc, serial_buf_rx, SERIAL_BUF_SIZE_RX);
     if (err) {
       Serial.print("Deserialization of received data failed: ");
       Serial.println(err.f_str());

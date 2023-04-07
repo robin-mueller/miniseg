@@ -1,5 +1,5 @@
 from PySide6.QtQuickWidgets import QQuickWidget
-from PySide6.QtCore import Qt, Signal, QObject, Property, QUrl
+from PySide6.QtCore import Qt, Signal, QObject, Property
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
 

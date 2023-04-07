@@ -1,17 +1,32 @@
 {
-  "from_device": ["msg"],
-  "to_device": [
-    "controller_state",
-    {
-      "A1": [
-        "B1",
-        "B2"
-      ],
-      "A2": [
-        "B3",
-        "B4"
-      ]
+  "from_device": {
+    "msg": "char[10]",
+    "A1": {
+      "B1": "float",
+      "B2": "float"
     },
-    "A3"
-  ]
+    "A2": {
+      "B3": {
+        "C1": "bool",
+        "C2": "bool"
+      },
+      "B4": "float"
+    },
+    "A3": "float"
+  },
+  "to_device": {
+    "controller_state": "bool",
+    "A1": {
+      "B1": "float",
+      "B2": "float"
+    },
+    "A2": {
+      "B3": {
+        "C1": "bool",
+        "C2": "bool"
+      },
+      "B4": "float"
+    },
+    "A3": "float"
+  }
 }

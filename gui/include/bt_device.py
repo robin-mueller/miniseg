@@ -10,8 +10,14 @@ from collections import UserDict
 from PySide6.QtCore import QThread, Signal, QObject
 
 
-class InterfaceBuffer(UserDict):
-    _valid_value_types = [float, int, str, bool]
+class Interface(UserDict):
+    # Maps the types that are allowed to specify in the interface file to Python types
+    _valid_type_map = {
+        'String': str,
+        'bool': bool,
+        'float': float,
+        'int': int
+    }
 
     class JsonFormatError(Exception):
         pass
@@ -28,31 +34,29 @@ class InterfaceBuffer(UserDict):
 
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
-            if isinstance(obj, InterfaceBuffer):
+            if isinstance(obj, Interface):
                 return obj.data
             elif isinstance(obj, dict):
                 return {key: self.default(value) for key, value in obj.items()}
             return super().default(obj)
 
-    def __init__(self, interface_keys: list[str | dict]):
-        assert isinstance(interface_keys, list), TypeError(f"Wrong type of specifier_keys: {type(interface_keys)}. "
-                                                           f"Specifier keys have to be defined inside a list. The list can contain strings and dictionaries.")
+    def __init__(self, interface_def: dict[str, str | dict]):
+        if not isinstance(interface_def, dict):
+            raise TypeError(f"Wrong type of interface_def: {type(interface_def)}. "
+                            f"The interface has to be defined as a dict with values of strings and possibly nested dicts.")
         super().__init__()
-        self.data = self._generate_initial_dict(interface_keys)
-        self._interface_keys = interface_keys
+        self._interface_def = interface_def
+        self.data = self._generate_initial_dict()
 
-    @staticmethod
-    def _generate_initial_dict(keys: list):
+    def _generate_initial_dict(self):
         result = {}
-        for key in keys:
-            if isinstance(key, str):
+        for key, val in self._interface_def.items():
+            if isinstance(val, str):
                 result[key] = None
-            elif isinstance(key, dict):
-                for k, v in key.items():
-                    assert isinstance(v, list), "All specifiers must be defined inside a list!"
-                    result[k] = InterfaceBuffer(v)
+            elif isinstance(val, dict):
+                result[key] = Interface(val)
             else:
-                raise TypeError("Objects inside the specifier key list must be strings or dictionaries!")
+                raise TypeError(f"Wrong value type for a key: {type(val)}! Only strings and dicts allowed.")
         return result
 
     def __getitem__(self, key: str | tuple[str]):
@@ -60,27 +64,28 @@ class InterfaceBuffer(UserDict):
             try:
                 return super().__getitem__(key)
             except KeyError:
-                raise self.UnmatchedKeyError(key, self._interface_keys) from None
+                raise self.UnmatchedKeyError(key, self._interface_def) from None
         elif isinstance(key, tuple):  # If dict is accessed using multiple keys
             return reduce(UserDict.__getitem__, key, self)
         else:
-            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}")
+            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
     def __setitem__(self, key: str | tuple, value):
         if isinstance(key, str):  # If dict is accessed using a single key
-            assert any([isinstance(value, t) for t in self._valid_value_types]), TypeError(
-                f"Value type has to be one of {self._valid_value_types}.")
-            if isinstance(self.__getitem__(key), InterfaceBuffer):
+            defined_type = self._valid_type_map.get(self._interface_def[key])
+            if not isinstance(value, defined_type):
+                raise TypeError(f"Value type was defined as '{self._interface_def[key]}' which corresponds to {defined_type} but provided was {type(value)}.")
+            if isinstance(self.__getitem__(key), Interface):
                 raise self.SetItemNotAllowedError(key)
             super().__setitem__(key, value)
         elif isinstance(key, tuple):  # If dict is accessed using multiple keys
             d = self.__getitem__(key[:-1])
-            if isinstance(d, InterfaceBuffer) and key[-1] in d:
+            if isinstance(d, Interface) and key[-1] in d:
                 d[key[-1]] = value
             else:
-                raise self.UnmatchedKeyError(key, self._interface_keys)
+                raise self.UnmatchedKeyError(key, self._interface_def)
         else:
-            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}")
+            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
 
 class BTDevice:
@@ -116,11 +121,11 @@ class BTDevice:
         with interface_json.open() as interface_file:
             interface_specifiers = json.load(interface_file)
             try:
-                self._tx_buf = InterfaceBuffer(interface_specifiers["to_device"])
-                self._rx_buf = InterfaceBuffer(interface_specifiers["from_device"])
+                self._tx_buf = Interface(interface_specifiers["to_device"])
+                self._rx_buf = Interface(interface_specifiers["from_device"])
             except (TypeError, KeyError):
-                raise InterfaceBuffer.JsonFormatError("Base key(s) not found! "
-                                                      "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
+                raise Interface.JsonFormatError("Base key(s) not found! "
+                                                "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
 
     @property
     def tx_buffer(self):
@@ -166,7 +171,7 @@ class BTDevice:
             if self._connected:
                 try:
                     self._socket.send(
-                        json.dumps(self.tx_buffer, cls=InterfaceBuffer.JSONEncoder, separators=(',', ':')).encode()
+                        json.dumps(self.tx_buffer, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
                     )
                 except TimeoutError as e:
                     self.disconnect()
@@ -185,8 +190,10 @@ class BTDevice:
 
 if __name__ == "__main__":
     device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
-    device.connect()
+    # device.connect()
     device.tx_buffer["controller_state"] = True
+    device.tx_buffer["A1", "B2"] = 0.0
+    print(device.tx_buffer)
     device.publish_data()
     time.sleep(0.5)
     device.disconnect()
