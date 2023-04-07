@@ -1,8 +1,6 @@
 # This script loads Qt resources and ui files to provide them for usage in PySide6
 
-# !!!
-# Working directory is assumed to be root of gui directory
-# !!!
+Set-Location $PSScriptRoot/..
 
 Write-Output "Running resource generation ..."
 

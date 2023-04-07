@@ -5,7 +5,7 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 80
+#define JSON_DOC_SIZE_RX 72
 #define JSON_DOC_SIZE_TX 80
 
 namespace Interface {
@@ -21,11 +21,10 @@ struct {
 bool C1;
 bool C2;
 } B3;
-float B4;
 } A2;
 float A3;
 
-RX(const StaticJsonDocument doc) : controller_state(doc["controller_state"], A1({doc["A1"]["B1"], doc["A1"]["B2"]}, A2({{doc["A2"]["B3"]["C1"], doc["A2"]["B3"]["C2"]}, doc["A2"]["B4"]}, A3(doc["A3"] {}
+RX(const StaticJsonDocument doc) : controller_state(doc["controller_state"], A1({doc["A1"]["B1"], doc["A1"]["B2"]}, A2({{doc["A2"]["B3"]["C1"], doc["A2"]["B3"]["C2"]}}, A3(doc["A3"] {}
 
 }
 
