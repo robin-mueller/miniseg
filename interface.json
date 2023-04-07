@@ -3,29 +3,20 @@
     "msg": "char[10]",
     "a1": {
       "b1": "float",
-      "b2": "float"
-    },
-    "a2": {
-      "b3": {
-        "c1": "bool",
-        "c2": "bool"
-      },
-      "b4": "float"
-    },
-    "a3": "float"
-  },
-  "to_device": {
-    "controller_state": "bool",
-    "a1": {
-      "b1": "float",
-      "b2": "float"
-    },
-    "a2": {
-      "b3": {
+      "b2": {
         "c1": "bool",
         "c2": "bool"
       }
-    },
-    "a3": "float"
+    }
+  },
+  "to_device": {
+    "msg": "char[10]",
+    "a1": {
+      "b1": "float",
+      "b2": {
+        "c1": "bool",
+        "c2": "bool"
+      }
+    }
   }
 }
