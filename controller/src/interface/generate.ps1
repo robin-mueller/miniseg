@@ -84,7 +84,7 @@ function CreateInterfaceStructToDoc($interfaceDef)
         $string = ""
         if ($val.GetType().Name -eq "String")
         {
-            $string = "$objName[`"$key`"] = this.$accessor;`n"
+            $string = "$objName[`"$key`"] = this->$accessor;`n"
         }
         elseif ($val.GetType().Name -eq "PSCustomObject")
         {
@@ -121,16 +121,16 @@ namespace Interface {
 struct RX {
 
 $( CreateInterfaceStruct $interfaceJsonObject.to_device )
-RX(const StaticJsonDocument doc) : $( CreateInterfaceStructInitializerList $interfaceJsonObject.to_device ) {}
+RX(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) : $( CreateInterfaceStructInitializerList $interfaceJsonObject.to_device ) {}
 
-}
+};
 
 struct TX {
 $( CreateInterfaceStruct $interfaceJsonObject.from_device )
-void to_doc(StaticJsonDocument* doc) {
+void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
 $( CreateInterfaceStructToDoc $interfaceJsonObject.from_device )}
 
-}
+};
 }
 
 #endif

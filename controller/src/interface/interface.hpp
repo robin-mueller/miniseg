@@ -9,54 +9,53 @@
 #define JSON_DOC_SIZE_TX 80
 
 namespace Interface {
-    struct RX {
+struct RX {
 
-        bool controller_state;
-        struct {
-            float b1;
-            float b2;
-        } a1;
-        struct {
-            struct {
-                bool c1;
-                bool c2;
-            } b3;
-        } a2;
-        float a3;
+  bool controller_state;
+  struct {
+    float b1;
+    float b2;
+  } a1;
+  struct {
+    struct {
+      bool c1;
+      bool c2;
+    } b3;
+  } a2;
+  float a3;
 
-        RX(const StaticJsonDocument doc) : controller_state(doc["controller_state"]), a1({doc["a1"]["b1"], doc["a1"]["b2"]}), a2({{doc["a2"]["b3"]["c1"], doc["a2"]["b3"]["c2"]}}), a3(doc["a3"]) {}
+  RX(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc)
+    : controller_state(doc["controller_state"]), a1({ doc["a1"]["b1"], doc["a1"]["b2"] }), a2({ { doc["a2"]["b3"]["c1"], doc["a2"]["b3"]["c2"] } }), a3(doc["a3"]) {}
+};
 
-    }
+struct TX {
+  char msg[10];
+  struct {
+    float b1;
+    float b2;
+  } a1;
+  struct {
+    struct {
+      bool c1;
+      bool c2;
+    } b3;
+    float b4;
+  } a2;
+  float a3;
 
-    struct TX {
-        char msg[10];
-        struct {
-            float b1;
-            float b2;
-        } a1;
-        struct {
-            struct {
-                bool b1;
-                bool b2;
-            } b3;
-            float b4;
-        } a2;
-        float b3;
-
-        void to_doc(StaticJsonDocument *doc) {
-            doc["msg"] = this.msg;
-            JsonObject a1 = doc.createNestedObject("a1");
-            a1["b1"] = this.a1.b1;
-            a1["b2"] = this.a1.b2;
-            JsonObject a2 = doc.createNestedObject("a2");
-            JsonObject b3 = a2.createNestedObject("b3");
-            b3["b1"] = this.a2.b3.b1;
-            b3["b2"] = this.a2.b3.b2;
-            a2["b4"] = this.a2.b4;
-            doc["b3"] = this.b3;
-        }
-
-    }
+  void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
+    doc["msg"] = this->msg;
+    JsonObject a1 = doc.createNestedObject("a1");
+    a1["b1"] = this->a1.b1;
+    a1["b2"] = this->a1.b2;
+    JsonObject a2 = doc.createNestedObject("a2");
+    JsonObject b3 = a2.createNestedObject("b3");
+    b3["c1"] = this->a2.b3.c1;
+    b3["c2"] = this->a2.b3.c2;
+    a2["b4"] = this->a2.b4;
+    doc["a3"] = this->a3;
+  }
+};
 }
 
 #endif

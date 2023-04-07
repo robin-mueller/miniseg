@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "src/interface.hpp"
+#include "src/interface/interface.hpp"
 
 #define SERIAL_BUF_SIZE_RX 2048
 

@@ -7,12 +7,12 @@
     },
     "a2": {
       "b3": {
-        "b1": "bool",
-        "b2": "bool"
+        "c1": "bool",
+        "c2": "bool"
       },
       "b4": "float"
     },
-    "b3": "float"
+    "a3": "float"
   },
   "to_device": {
     "controller_state": "bool",
