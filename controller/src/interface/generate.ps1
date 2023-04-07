@@ -30,7 +30,15 @@ function CreateInterfaceStruct($interfaceDef)
     {
         if ($prop.Value.GetType().Name -eq "String")
         {
-            $string += "$( $prop.Value ) $( $prop.Name );"
+            if ($prop.Value -match "\[(\d+)\]") {
+                # Type is an array
+                $size = [int]$Matches[1]
+                $type = ($prop.Value -split "\[")[0]
+                $string += "$type $( $prop.Name )[$size];"
+            }
+            else {
+                $string += "$( $prop.Value ) $( $prop.Name );"
+            }
         }
         elseif ($prop.Value.GetType().Name -eq "PSCustomObject")
         {
