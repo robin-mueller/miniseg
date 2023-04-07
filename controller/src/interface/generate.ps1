@@ -64,7 +64,7 @@ function CreateInterfaceStructInitializerList($interfaceDef)
     $string = ""
     foreach ($prop in $interfaceDef.psobject.Properties)
     {
-        $string += "$( $prop.Name )($( VariableInitializer $prop.Value $( '[`"' + $prop.Name + '`"]' ) ), "
+        $string += "$( $prop.Name )($( VariableInitializer $prop.Value $( '[`"' + $prop.Name + '`"]' ) )), "
     }
     return $string.Substring(0, $string.Length - 2)
 }
