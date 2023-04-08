@@ -10,7 +10,7 @@
     }
   },
   "to_device": {
-    "msg": "char[10]",
+    "controller_state": "bool",
     "a1": {
       "b1": "float",
       "b2": {

@@ -127,19 +127,19 @@ class BTDevice:
         with interface_json.open() as interface_file:
             interface_specifiers = json.load(interface_file)
             try:
-                self._tx_buf = Interface(interface_specifiers["to_device"])
-                self._rx_buf = Interface(interface_specifiers["from_device"])
+                self._tx_interface = Interface(interface_specifiers["to_device"])
+                self._rx_interface = Interface(interface_specifiers["from_device"])
             except (TypeError, KeyError):
                 raise Interface.JsonFormatError("Base key(s) not found! "
                                                 "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
 
     @property
-    def tx_buffer(self):
-        return self._tx_buf
+    def tx_interface(self):
+        return self._tx_interface
 
     @property
-    def rx_buffer(self):
-        return self._rx_buf
+    def rx_interface(self):
+        return self._rx_interface
 
     def connect(self):
         with self._connect_lock:
@@ -177,7 +177,7 @@ class BTDevice:
             if self._connected:
                 try:
                     self._socket.send(
-                        json.dumps(self.tx_buffer, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
+                        json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
                     )
                 except TimeoutError as e:
                     self.disconnect()
@@ -197,9 +197,9 @@ class BTDevice:
 if __name__ == "__main__":
     device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
     device.connect()
-    device.tx_buffer["msg"] = "1234567890"
-    device.tx_buffer["a1", "b1"] = 5.5
-    print(device.tx_buffer)
+    device.tx_interface["msg"] = "1234567890"
+    device.tx_interface["a1", "b1"] = 5.5
+    print(device.tx_interface)
     device.publish_data()
     time.sleep(0.5)
     device.disconnect()

@@ -28,12 +28,14 @@ class MiniSegGUI(QMainWindow):
         self.header_section = HeaderSection(self.ui.header_frame)
         self.parameter_section = ParameterSection(self.ui.parameter_frame)
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame)
-        CurveLibrary.POSITION_SETPOINT = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
 
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.update({"controller_state": val}))
+        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.tx_interface.update({"controller_state": val}))
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bluetooth_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bluetooth_disconnect)
+
+        # Curve definitions
+        CurveLibrary.POSITION_SETPOINT = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
         
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
