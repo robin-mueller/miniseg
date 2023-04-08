@@ -1,10 +1,11 @@
 import json
 import time
+import re
 
 from functools import reduce
 from pathlib import Path
 from bluetooth import discover_devices, BluetoothSocket
-from typing import Optional, Callable
+from typing import Optional, Callable, NewType
 from threading import Lock
 from collections import UserDict
 from PySide6.QtCore import QThread, Signal, QObject
@@ -13,31 +14,33 @@ from PySide6.QtCore import QThread, Signal, QObject
 class Interface(UserDict):
     # Maps the types that are allowed to specify in the interface file to Python types
     _valid_type_map = {
-        'String': str,
+        'char[]': str,
         'bool': bool,
         'float': float,
         'int': int
     }
 
+    _UNDEFINED_TYPE = NewType('UndefinedType', None)
+
     class JsonFormatError(Exception):
         pass
 
     class UnmatchedKeyError(Exception):
-        def __init__(self, key, available_keys):
+        def __init__(self, key: str, available_keys: list | dict | UserDict):
             super().__init__(f"Key '{key}' has no match with the specified interface keys {list(available_keys)}.")
 
     class SetItemNotAllowedError(Exception):
-        def __init__(self, key):
+        def __init__(self, key: str):
             super().__init__(
-                f"Calling __setitem__() is only allowed on the lowest level of an InterfaceDict instance, hence only on keys that point to values! "
-                f"Key '{key}' doesn't point to a value, but rather to a nested InterfaceDict instance.")
+                f"Key '{key}' doesn't point to a value, but rather to a nested instance of {Interface}. "
+                f"Calling __setitem__() is only allowed on the lowest level of an {Interface} instance, hence only on keys that point to values! ")
 
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, Interface):
                 return obj.data
-            elif isinstance(obj, dict):
-                return {key: self.default(value) for key, value in obj.items()}
+            # elif isinstance(obj, dict):
+            #     return {key: self.default(value) for key, value in obj.items()}
             return super().default(obj)
 
     def __init__(self, interface_def: dict[str, str | dict]):
@@ -64,26 +67,29 @@ class Interface(UserDict):
             try:
                 return super().__getitem__(key)
             except KeyError:
-                raise self.UnmatchedKeyError(key, self._interface_def) from None
+                raise self.UnmatchedKeyError(key, self) from None
         elif isinstance(key, tuple):  # If dict is accessed using multiple keys
-            return reduce(UserDict.__getitem__, key, self)
+            return reduce(lambda d, k: d[k], key, self)
         else:
             raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
     def __setitem__(self, key: str | tuple, value):
         if isinstance(key, str):  # If dict is accessed using a single key
-            defined_type = self._valid_type_map.get(self._interface_def[key])
-            if not isinstance(value, defined_type):
-                raise TypeError(f"Value type was defined as '{self._interface_def[key]}' which corresponds to {defined_type} but provided was {type(value)}.")
+            if key not in self:
+                raise self.UnmatchedKeyError(key, self)
             if isinstance(self.__getitem__(key), Interface):
                 raise self.SetItemNotAllowedError(key)
+            defined_type = self._valid_type_map.get(re.sub(r'\d+', '', self._interface_def[key]), self._UNDEFINED_TYPE)
+            if not isinstance(value, defined_type):
+                raise TypeError(
+                    f"Value type was defined as '{self._interface_def[key]}' which corresponds to {defined_type} but provided was {type(value)}.")
             super().__setitem__(key, value)
         elif isinstance(key, tuple):  # If dict is accessed using multiple keys
             d = self.__getitem__(key[:-1])
-            if isinstance(d, Interface) and key[-1] in d:
+            if isinstance(d, Interface):
                 d[key[-1]] = value
             else:
-                raise self.UnmatchedKeyError(key, self._interface_def)
+                raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}!")
         else:
             raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
@@ -190,9 +196,9 @@ class BTDevice:
 
 if __name__ == "__main__":
     device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
-    # device.connect()
-    device.tx_buffer["controller_state"] = True
-    device.tx_buffer["A1", "B2"] = 0.0
+    device.connect()
+    device.tx_buffer["msg"] = "1234567890"
+    device.tx_buffer["a1", "b1"] = 5.5
     print(device.tx_buffer)
     device.publish_data()
     time.sleep(0.5)

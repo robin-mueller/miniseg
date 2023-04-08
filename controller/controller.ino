@@ -6,13 +6,18 @@ ComInterface::TX tx_interface;
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial)
+    ;
 }
 
 void loop() {
-  if (Serial.available()) {
-    rx_interface.receive();
-    strlcpy(tx_interface.msg, "TEST", sizeof(tx_interface.msg)/sizeof(*tx_interface.msg));
-    tx_interface.transmit();
-  }
+}
+
+void serialEvent() {
+  const DeserializationError err = rx_interface.receive();
+  if (err) return;
+  
+  strlcpy(tx_interface.msg, rx_interface.msg, sizeof(tx_interface.msg) / sizeof(*tx_interface.msg));
+  tx_interface.a1.b1 = rx_interface.a1.b1;
+  tx_interface.transmit();
 }

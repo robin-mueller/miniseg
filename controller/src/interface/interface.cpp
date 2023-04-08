@@ -1,35 +1,28 @@
 #include <Arduino.h>
 #include "interface.hpp"
 
-#define SERIAL_BUF_SIZE_RX 2048
-
-bool ComInterface::RX::receive() {
-  // Read from serial
-  char serial_buf_rx[SERIAL_BUF_SIZE_RX];
-  int bytes_read = Serial.readBytesUntil('\n', serial_buf_rx, SERIAL_BUF_SIZE_RX);
-  serial_buf_rx[bytes_read] = '\0';
-  if (serial_buf_rx[bytes_read - 1] != '}') {
-    Serial.println("Serial receive buffer size exceeded!");
-    return false;
-  }
-
-  // Deserialize receive buffer
+const DeserializationError ComInterface::RX::receive() {
   StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
-  const DeserializationError err = deserializeJson(rx_doc, serial_buf_rx, SERIAL_BUF_SIZE_RX);
+  const DeserializationError err = deserializeJson(rx_doc, Serial);
   if (err) {
-    Serial.print("Deserialization of received data failed: ");
+    Serial.print("Deserialization ERROR: Failed with code: ");
     Serial.println(err.f_str());
-    return false;
+  } else {
+    // Write to struct
+    from_doc(rx_doc);
+    Serial.println("Deserialization SUCCESS! RX_DOCSIZE: " + String(rx_doc.memoryUsage()));    
   }
-
-  // Write to struct
-  from_doc(rx_doc);
-  return true;
+  return err;
 }
 
 bool ComInterface::TX::transmit() {
   StaticJsonDocument<JSON_DOC_SIZE_TX> tx_doc;
   to_doc(tx_doc);
+  if (tx_doc.overflowed()) {
+    Serial.println("Serialization ERROR: Document size for tx_doc too small!");
+    return false;
+  };
   serializeJsonPretty(tx_doc, Serial);
+  Serial.println("Serialization SUCCESS! TX_DOCSIZE: " + String(tx_doc.memoryUsage())); 
   return true;
 }
