@@ -1,7 +1,7 @@
 from pathlib import Path
-from include.bt_device import BTDevice
+from include.communication import BTDevice
 from resources.main_window_ui import Ui_MainWindow
-from include.helper import MonitoringGraph, GraphDict
+from include.helper import MonitoringGraph, GraphDict, ConcurrentTask
 from include.curve_definition import CurveDefinition, CurveLibrary
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
@@ -20,6 +20,7 @@ class MiniSegGUI(QMainWindow):
         
         self.monitors: list[MonitoringWindow] = []
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
+        self.bt_connect_task = ConcurrentTask(self.bt_device.connect, self.on_bluetooth_connected, self.on_bluetooth_connection_failed)
         
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
@@ -52,7 +53,9 @@ class MiniSegGUI(QMainWindow):
         self.ui.statusbar.addWidget(self.bt_connect_progress_bar)
         self.bt_connect_label.show()
         self.bt_connect_progress_bar.show()
-        self.bt_device.async_connect(self.on_bluetooth_connected, self.on_bluetooth_connection_failed)
+
+        # Connect asynchronoulsy
+        self.bt_connect_task.start()
     
     @Slot()
     def on_bluetooth_connected(self):

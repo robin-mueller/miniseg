@@ -5,10 +5,9 @@ import re
 from functools import reduce
 from pathlib import Path
 from bluetooth import discover_devices, BluetoothSocket
-from typing import Optional, Callable, NewType
+from typing import Optional, NewType
 from threading import Lock
 from collections import UserDict
-from PySide6.QtCore import QThread, Signal, QObject
 
 
 class Interface(UserDict):
@@ -39,8 +38,6 @@ class Interface(UserDict):
         def default(self, obj):
             if isinstance(obj, Interface):
                 return obj.data
-            # elif isinstance(obj, dict):
-            #     return {key: self.default(value) for key, value in obj.items()}
             return super().default(obj)
 
     def __init__(self, interface_def: dict[str, str | dict]):
@@ -98,31 +95,11 @@ class BTDevice:
     class NotConnectedError(Exception):
         pass
 
-    class _ConnectWorker(QObject):
-        connected = Signal()
-        connection_failed = Signal(str)
-        finished = Signal()
-
-        def __init__(self, connect_handle: Callable[[], None]):
-            super().__init__()
-            self.connect_handle = connect_handle
-
-        def run(self):
-            try:
-                self.connect_handle()
-                self.connected.emit()
-            except Exception as e:
-                self.connection_failed.emit(type(e).__name__)
-            finally:
-                self.finished.emit()
-
     def __init__(self, address: str, interface_json: Path):
         self._address = address
         self._connect_lock = Lock()
         self._connected = False
         self._socket: Optional[BluetoothSocket] = None
-        self._connect_worker: Optional[BTDevice._ConnectWorker] = None
-        self._connect_thread: Optional[QThread] = None
 
         with interface_json.open() as interface_file:
             interface_specifiers = json.load(interface_file)
@@ -149,22 +126,6 @@ class BTDevice:
                 self._socket.connect((self._address, 1))
                 self._connected = True
 
-    # noinspection PyUnresolvedReferences
-    def async_connect(self, on_connected_handle: Callable[[], None],
-                      on_connection_failed_handle: Callable[[str], None]):
-        self._connect_worker = self._ConnectWorker(self.connect)
-        self._connect_worker.connected.connect(on_connected_handle)
-        self._connect_worker.connection_failed.connect(on_connection_failed_handle)
-
-        self._connect_thread = QThread()
-        self._connect_worker.moveToThread(self._connect_thread)
-        self._connect_thread.started.connect(self._connect_worker.run)
-        self._connect_worker.finished.connect(self._connect_thread.quit)
-        self._connect_worker.finished.connect(self._connect_worker.deleteLater)
-        self._connect_thread.finished.connect(self._connect_thread.deleteLater)
-
-        self._connect_thread.start()
-
     def disconnect(self):
         with self._connect_lock:
             if self._connected:
@@ -172,7 +133,7 @@ class BTDevice:
                 self._socket = None
                 self._connected = False
 
-    def publish_data(self):
+    def publish(self):
         with self._connect_lock:
             if self._connected:
                 try:
@@ -185,22 +146,23 @@ class BTDevice:
             else:
                 raise self.NotConnectedError("Instance method connect() was never called!")
 
+    # def receive(self):
+
     @staticmethod
     def discover():
         nearby_devices = discover_devices(duration=5, lookup_names=True)
         print("Found {} devices.".format(len(nearby_devices)))
-
         for addr, name in nearby_devices:
             print(f"Adress: {addr} - Name: {name}")
 
 
 if __name__ == "__main__":
     device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
-    device.connect()
-    device.tx_interface["msg"] = "1234567890"
+    device.tx_interface["controller_state"] = True
     device.tx_interface["a1", "b1"] = 5.5
-    print(device.tx_interface)
-    device.publish_data()
+    device.connect()
+    print("Send: " + str(device.tx_interface))
+    device.publish()
     time.sleep(0.5)
     device.disconnect()
 

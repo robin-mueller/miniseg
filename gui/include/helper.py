@@ -2,13 +2,81 @@ import numpy as np
 import pyqtgraph as pg
 
 from collections import UserDict
-
+from typing import Callable, Optional
 from include.curve_definition import CurveDefinition
 from configuration import THEME, PARAMETERS
 from time import perf_counter
-from PySide6.QtCore import QTime, QTimer, QObject, QEvent
+from PySide6.QtCore import QTime, QTimer, QObject, QEvent, Signal, QThread
 from PySide6.QtWidgets import QMenu
 
+
+# noinspection PyUnresolvedReferences
+class ConcurrentTask(QObject):
+    """
+    A persistent handle (meaning the object doesn't have to be reinstantiated every time the task is supposed to start again)
+    for a concurrent task using QThread which is defined by the constructor arguments.
+    The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/
+    """
+
+    class _ConcurrentWorker(QObject):
+        success = Signal()
+        failed = Signal(str)
+        finished = Signal()
+        quit = Signal()
+
+        def __init__(self, do_work: Callable[[], None], repeat):
+            super().__init__()
+            self._loop = True
+
+            def run():
+                try:
+                    while self._loop:
+                        do_work()
+                        self.success.emit()
+                        if not repeat:
+                            break
+                except Exception as e:
+                    self.failed.emit(repr(e))
+                finally:
+                    self.finished.emit()
+
+            self.run = run
+            self.quit.connect(self.on_quit)
+
+        def on_quit(self):
+            self._loop = False
+
+    def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[str], None] = None, repeat=False):
+        super().__init__()
+
+        def create_worker():
+            worker = self._ConcurrentWorker(do_work, repeat)
+            if on_success:
+                worker.success.connect(on_success)
+            if on_failed:
+                worker.failed.connect(on_failed)
+            return worker
+
+        self.create_worker = create_worker
+        self.worker: Optional[_ConcurrentWorker] = None
+        self.thread: Optional[QThread] = None
+        self._task_done = False
+
+    def _setup_task(self):
+        self.worker = self.create_worker()
+        self.thread = QThread()
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+    def start(self):
+        self._setup_task()
+        self.thread.start()
+
+    # def quit(self):
+    #     self.worker
 
 class KeepMenuOpen(QObject):
     def eventFilter(self, obj: QObject, event: QEvent):
