@@ -119,6 +119,7 @@ class BTDevice:
         return self._rx_interface
 
     def connect(self):
+        time.sleep(2)
         with self._connect_lock:
             if not self._connected:
                 self._socket = BluetoothSocket()

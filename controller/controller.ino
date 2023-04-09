@@ -18,7 +18,7 @@ void serialEvent() {
   const DeserializationError err = rx_interface.receive();
   if (err) return;
   
-  strlcpy(tx_interface.msg, rx_interface.msg, sizeof(tx_interface.msg) / sizeof(*tx_interface.msg));
+  strlcpy(tx_interface.msg, "TEST", sizeof(tx_interface.msg) / sizeof(*tx_interface.msg));
   tx_interface.a1.b1 = rx_interface.a1.b1;
   tx_interface.transmit();
 }
