@@ -25,6 +25,9 @@ class Interface(UserDict):
     }
     _UNDEFINED_TYPE = NewType('UndefinedType', None)
 
+    class ConversionError(Exception):
+        pass
+
     class JsonFormatError(Exception):
         pass
 
@@ -36,7 +39,8 @@ class Interface(UserDict):
         def __init__(self, key: str):
             super().__init__(
                 f"Key '{key}' doesn't point to a value, but rather to a nested instance of {Interface}. "
-                f"Calling __setitem__() is only allowed on the lowest level of an {Interface} instance, hence only on keys that point to values! ")
+                f"Calling __setitem__() is only allowed for a key on the lowest level, hence only for keys that point to values. "
+                f"Otherwise protected {Interface.__name__} objects would be overwritten!")
 
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -76,18 +80,28 @@ class Interface(UserDict):
             else:
                 raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
-    def __setitem__(self, key: str | tuple, value):
+    def __setitem__(self, key: str | tuple[str], value):
         with self._lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 if key not in self:
                     raise self.UnmatchedKeyError(key, self)
                 if isinstance(self.__getitem__(key), Interface):
-                    raise self.SetItemNotAllowedError(key)
+                    if isinstance(value, dict):
+                        # Parse dict and try to assign values recursively
+                        for k, v in value.items():
+                            self.__getitem__(key)[k] = v
+                        return
+                    else:
+                        raise self.SetItemNotAllowedError(key)
                 defined_type = self._valid_type_map.get(re.sub(r'\d+', '', self._interface_def[key]), self._UNDEFINED_TYPE)
-                if not isinstance(value, defined_type):
-                    raise TypeError(
-                        f"Value type was defined as '{self._interface_def[key]}' which corresponds to {defined_type} but provided was {type(value)}.")
-                super().__setitem__(key, value)
+                try:
+                    converted_val = defined_type(value)
+                except ValueError:
+                    raise self.ConversionError(f"Could no convert value to defined type: "
+                                               f"Value type for key '{key}' was defined as '{self._interface_def[key]}' which corresponds to {defined_type} "
+                                               f"but provided was {type(value)} ({value=}).")
+                else:
+                    super().__setitem__(key, converted_val)
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
                 d = self.__getitem__(key[:-1])
                 if isinstance(d, Interface):
@@ -102,9 +116,13 @@ class BTDevice:
     class NotConnectedError(Exception):
         pass
 
-    def __init__(self, address: str, interface_json: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 1024):
+    class InvalidDataError(Exception):
+        pass
+
+    def __init__(self, address: str, interface_json: Path, connect_timeout_sec: float = 5.0, receive_timeout_sec: float = 1.0, rx_chunk_size: int = 1024):
         self._address = address
         self._conn_timeout = connect_timeout_sec
+        self._recv_timeout = receive_timeout_sec
         self._rx_chunk_size = rx_chunk_size
         self._connect_lock = RLock()  # Needs to be reentrant because of the except statement in self.publish()
         self._connected = False
@@ -162,18 +180,20 @@ class BTDevice:
             if self._connected:
                 if select.select([self._socket], [], [], 0)[0]:  # Check for available data
                     buffer = bytearray()
+                    self._socket.settimeout(self._recv_timeout)
                     while True:
                         buffer.extend(self._socket.recv(self._rx_chunk_size))
                         try:
                             json_msg = json.loads(buffer.decode())
                         except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
                             continue
+                        except TimeoutError:
+                            raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
                         else:
                             self.rx_interface.update(json_msg)
                             break
-                    print(self.rx_interface)
+                    print(self.rx_interface.data)
                     return True
-                print("No data available")
                 return False
             else:
                 raise self.NotConnectedError("Cannot receive when the socket is not connected!")

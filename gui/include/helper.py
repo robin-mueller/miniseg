@@ -39,8 +39,8 @@ class ConcurrentTask:
     The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/
     """
     class WorkFailedError(Exception):
-        def __init__(self, ex_msg: str):
-            super().__init__(f"No exception handler was connected but an exception occured: {ex_msg}")
+        def __init__(self, c: Callable, ex_msg: str):
+            super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{ex_msg}")
 
     def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[str], None] = None, repeat_ms: int = None):
 
@@ -52,7 +52,7 @@ class ConcurrentTask:
                 worker.failed.connect(on_failed)
             else:
                 def raise_ex(ex_msg: str):
-                    raise self.WorkFailedError(ex_msg)
+                    raise self.WorkFailedError(do_work, ex_msg)
                 worker.failed.connect(raise_ex)
             return worker
 
@@ -94,6 +94,7 @@ class ConcurrentTask:
         """
         locker = QMutexLocker(self._task_dead_mutex)
         if not self._task_dead:
+            self.timer.stop()
             self.thread.quit()
             self.thread.wait()
             self.worker = None
