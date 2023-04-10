@@ -19,6 +19,6 @@ void serialEvent() {
   if (err) return;
   
   strlcpy(tx_interface.msg, "TEST", sizeof(tx_interface.msg) / sizeof(*tx_interface.msg));
-  tx_interface.a1.b1 = rx_interface.a1.b1;
+  tx_interface.controller_state = rx_interface.controller_state;
   tx_interface.transmit();
 }

@@ -1,8 +1,9 @@
+from functools import partial
 from pathlib import Path
-from include.communication import BTDevice
+from include.communication import BTDevice, Interface
 from resources.main_window_ui import Ui_MainWindow
 from include.helper import MonitoringGraph, GraphDict, ConcurrentTask
-from include.curve_definition import CurveDefinition, CurveLibrary
+from include.curve_definition import CurveDefinition, CURVE_LIBRARY
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
 from PySide6.QtCore import Slot
@@ -38,12 +39,22 @@ class MiniSegGUI(QMainWindow):
         self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
 
         # Curve definitions
-        CurveLibrary.POSITION_SETPOINT = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
+        CURVE_LIBRARY["POSITION_SETPOINT"] = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
+
+        def add_interface_curve_candidates(accessor: list[str], definition: dict[str, str | dict]):
+            for key, val in definition.items():
+                _accessor = accessor + [key]
+                if isinstance(val, str):
+                    if val in (type_string for type_string, p_type in Interface.VALID_TYPES.items() if p_type in [float, int, bool]):
+                        CURVE_LIBRARY['.'.join(_accessor).upper()] = CurveDefinition('.'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor)))
+                elif isinstance(val, dict):
+                    add_interface_curve_candidates(_accessor, val)
+        add_interface_curve_candidates([], self.bt_device.rx_interface.definition)
         
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
-            curves=[CurveLibrary.POSITION_SETPOINT],
+            curves=[CURVE_LIBRARY["POSITION_SETPOINT"]],
             title="Position [cm]"
         )
         self.graphs[0].start()
@@ -69,12 +80,12 @@ class MiniSegGUI(QMainWindow):
         # Start receiving
         self.bt_receive_task.start()
     
-    @Slot(str)
-    def on_bluetooth_connection_failed(self, exception_name: str):
+    @Slot(Exception)
+    def on_bluetooth_connection_failed(self, exception: Exception):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.actionConnect.setEnabled(True)
-        self.ui.statusbar.showMessage(f"Connecting failed - {exception_name} occured!", 3000)
+        self.ui.statusbar.showMessage(f"Connecting failed - {exception.__class__.__name__}: {str(exception)}", 3000)
     
     @Slot()
     def on_bluetooth_disconnect(self):

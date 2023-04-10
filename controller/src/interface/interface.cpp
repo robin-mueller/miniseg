@@ -10,7 +10,7 @@ const DeserializationError ComInterface::RX::receive() {
   } else {
     // Write to struct
     from_doc(rx_doc);
-    Serial.println("Deserialization SUCCESS! RX_DOCSIZE: " + String(rx_doc.memoryUsage()));    
+    // Serial.println("Deserialization SUCCESS! RX_DOCSIZE: " + String(rx_doc.memoryUsage()));    
   }
   return err;
 }
@@ -22,7 +22,8 @@ bool ComInterface::TX::transmit() {
     Serial.println("Serialization ERROR: Document size for tx_doc too small!");
     return false;
   };
-  serializeJsonPretty(tx_doc, Serial);
-  Serial.println("Serialization SUCCESS! TX_DOCSIZE: " + String(tx_doc.memoryUsage())); 
+  // serializeJsonPretty(tx_doc, Serial);
+  // Serial.println("Serialization SUCCESS! TX_DOCSIZE: " + String(tx_doc.memoryUsage()));
+  serializeJson(tx_doc, Serial); 
   return true;
 }

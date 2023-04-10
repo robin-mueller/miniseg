@@ -1,11 +1,10 @@
-import inspect
 import pandas as pd
 
 from typing import Optional
 from pathlib import Path
 from configuration import PARAMETERS
 from include.helper import MonitoringGraph, GraphDict, KeepMenuOpen
-from include.curve_definition import CurveLibrary, CurveDefinition
+from include.curve_definition import CURVE_LIBRARY
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QMenu, QFileDialog
@@ -39,10 +38,10 @@ class MonitoringWindow(QMainWindow):
         graph_menu.installEventFilter(self.keep_menu_open_filter)
         remove_action = graph_menu.addAction("Remove")
         graph_menu.addSection("Curves")
-        curve_actions: dict[str, QAction] = {name: graph_menu.addAction(name) for name, t in inspect.get_annotations(CurveLibrary).items() if t == CurveDefinition}
+        curve_actions: dict[str, QAction] = {name: graph_menu.addAction(name) for name in CURVE_LIBRARY}
         
         def create_graph():
-            curves = [CurveLibrary.__getattribute__(CurveLibrary, name) for name, action in curve_actions.items() if action.isChecked()]
+            curves = [CURVE_LIBRARY[name] for name, action in curve_actions.items() if action.isChecked()]
             self.graphs[graph_id] = MonitoringGraph(curves, graph_title)
             self.graphs[graph_id].start()
             

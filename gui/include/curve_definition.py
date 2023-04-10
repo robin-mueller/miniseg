@@ -28,8 +28,7 @@ class CurveDefinition:
     get_func: Callable[[], float]
     color: str = CurveColors.DEFAULT
     window_sec: float = 30  # The default window size of the scrolling graphs in seconds#
-    
 
-class CurveLibrary:
-    POSITION_SETPOINT: CurveDefinition
+
+CURVE_LIBRARY: dict[str, CurveDefinition] = {}
     

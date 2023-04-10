@@ -2,6 +2,7 @@ import json
 import time
 import re
 import select
+import numpy as np
 
 from functools import reduce
 from pathlib import Path
@@ -15,12 +16,12 @@ class Interface(UserDict):
     A thread safe dict-like object that acts like a runtime validated buffer for incoming and outgoing data.
     """
 
-    # Maps the types that are allowed to specify in the interface file to Python types
-    _valid_type_map = {
-        'char[]': str,
-        'bool': bool,
-        'float': float,
-        'int': int
+    # Maps the types that are allowed to be specified in the interface json file to Python types
+    VALID_TYPES = {
+        "char[]": str,
+        "bool": bool,
+        "float": float,
+        "int": int
     }
 
     class UndefinedType:
@@ -28,9 +29,6 @@ class Interface(UserDict):
             raise ValueError
 
     class ConversionError(Exception):
-        pass
-
-    class JsonFormatError(Exception):
         pass
 
     class UnmatchedKeyError(Exception):
@@ -52,25 +50,24 @@ class Interface(UserDict):
 
     def __init__(self, interface_def: dict[str, str | dict]):
         if not isinstance(interface_def, dict):
-            raise TypeError(f"Wrong type of interface_def: {type(interface_def)}. "
-                            f"The interface has to be defined as a dict with values of strings and possibly nested dicts.")
+            raise TypeError(f"Wrong type of interface_def: {type(interface_def)}. The interface has to be defined as a dict with string or dicts as values.")
         super().__init__()
         self._lock = RLock()
         self._interface_def = interface_def
-        self.data = self._generate_initial_dict()
-
-    def _generate_initial_dict(self):
-        result = {}
-        for key, val in self._interface_def.items():
+        self.data = {}
+        for key, val in interface_def.items():
             if isinstance(val, str):
-                result[key] = None
+                self.data[key] = np.nan
             elif isinstance(val, dict):
-                result[key] = Interface(val)
+                self.data[key] = Interface(val)
             else:
                 raise TypeError(f"Wrong value type for a key: {type(val)}! Only strings and dicts allowed.")
-        return result
 
-    def __getitem__(self, key: str | tuple[str]):
+    @property
+    def definition(self):
+        return self._interface_def
+
+    def __getitem__(self, key: str | tuple):
         with self._lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 try:
@@ -82,7 +79,7 @@ class Interface(UserDict):
             else:
                 raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
-    def __setitem__(self, key: str | tuple[str], value):
+    def __setitem__(self, key: str | tuple, value):
         with self._lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 if key not in self:
@@ -95,7 +92,7 @@ class Interface(UserDict):
                         return
                     else:
                         raise self.SetItemNotAllowedError(key)
-                defined_type = self._valid_type_map.get(re.sub(r'\d+', '', self._interface_def[key]), self.UndefinedType)
+                defined_type = self.VALID_TYPES.get(re.sub(r'\d+', '', self._interface_def[key]), self.UndefinedType)
                 try:
                     converted_val = defined_type(value)
                 except ValueError:
@@ -136,8 +133,8 @@ class BTDevice:
                 self._tx_interface = Interface(interface_specifiers["to_device"])
                 self._rx_interface = Interface(interface_specifiers["from_device"])
             except (TypeError, KeyError):
-                raise Interface.JsonFormatError("Base key(s) not found! "
-                                                "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
+                raise self.InvalidDataError("Base key(s) not found! "
+                                            "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
 
     @property
     def tx_interface(self):

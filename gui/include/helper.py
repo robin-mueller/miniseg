@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QMenu
 class _ConcurrentWorker(QObject):
     trigger = Signal()
     success = Signal()
-    failed = Signal(str)
+    failed = Signal(Exception)
     finished = Signal()
 
     def __init__(self, do_work: Callable[[], None]):
@@ -25,7 +25,7 @@ class _ConcurrentWorker(QObject):
         try:
             self._do_work()
         except Exception as e:
-            self.failed.emit(f"{e.__class__.__name__}: {str(e)}")
+            self.failed.emit(e)
         else:
             self.success.emit()
         finally:
@@ -39,8 +39,8 @@ class ConcurrentTask:
     The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/
     """
     class WorkFailedError(Exception):
-        def __init__(self, c: Callable, ex_msg: str):
-            super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{ex_msg}")
+        def __init__(self, c: Callable, exception: Exception):
+            super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
 
     def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[str], None] = None, repeat_ms: int = None):
 
@@ -51,8 +51,8 @@ class ConcurrentTask:
             if on_failed:
                 worker.failed.connect(on_failed)
             else:
-                def raise_ex(ex_msg: str):
-                    raise self.WorkFailedError(do_work, ex_msg)
+                def raise_ex(exception: Exception):
+                    raise self.WorkFailedError(do_work, exception)
                 worker.failed.connect(raise_ex)
             return worker
 
