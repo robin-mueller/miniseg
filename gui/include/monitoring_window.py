@@ -8,13 +8,8 @@ from include.helper import MonitoringGraph, GraphDict, KeepMenuOpen
 from include.curve_definition import CurveLibrary, CurveDefinition
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMainWindow, QWidget, QMenu, QFileDialog
+from PySide6.QtWidgets import QMainWindow, QMenu, QFileDialog
 from PySide6.QtCore import Qt, QTime
-
-
-class GraphPage(QWidget):
-    def __init__(self):
-        super().__init__()
 
 
 class MonitoringWindow(QMainWindow):

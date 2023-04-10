@@ -21,6 +21,7 @@ class MiniSegGUI(QMainWindow):
         self.monitors: list[MonitoringWindow] = []
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
         self.bt_connect_task = ConcurrentTask(self.bt_device.connect, self.on_bluetooth_connected, self.on_bluetooth_connection_failed)
+        self.bt_receive_task = ConcurrentTask(self.bt_device.receive, repeat_ms=2000)
         
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
@@ -30,10 +31,12 @@ class MiniSegGUI(QMainWindow):
         self.parameter_section = ParameterSection(self.ui.parameter_frame)
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame)
 
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.tx_interface.update({"controller_state": val}))
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bluetooth_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bluetooth_disconnect)
+
+        # TX interface write triggers
+        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
 
         # Curve definitions
         CurveLibrary.POSITION_SETPOINT = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
@@ -63,6 +66,9 @@ class MiniSegGUI(QMainWindow):
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.statusbar.showMessage("Connection successful!", 3000)
         self.ui.actionDisconnect.setEnabled(True)
+
+        # Start receiving
+        self.bt_receive_task.start()
     
     @Slot(str)
     def on_bluetooth_connection_failed(self, exception_name: str):
@@ -88,6 +94,7 @@ class MiniSegGUI(QMainWindow):
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:
             monitor.close()
+        self.bt_receive_task.stop()
         self.bt_device.disconnect()
         super().closeEvent(event)
         
