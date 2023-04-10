@@ -6,7 +6,6 @@ import select
 from functools import reduce
 from pathlib import Path
 from bluetooth import discover_devices, BluetoothSocket
-from typing import NewType
 from threading import RLock
 from collections import UserDict
 
@@ -23,7 +22,10 @@ class Interface(UserDict):
         'float': float,
         'int': int
     }
-    _UNDEFINED_TYPE = NewType('UndefinedType', None)
+
+    class UndefinedType:
+        def __init__(self, *args, **kwargs):
+            raise ValueError
 
     class ConversionError(Exception):
         pass
@@ -93,7 +95,7 @@ class Interface(UserDict):
                         return
                     else:
                         raise self.SetItemNotAllowedError(key)
-                defined_type = self._valid_type_map.get(re.sub(r'\d+', '', self._interface_def[key]), self._UNDEFINED_TYPE)
+                defined_type = self._valid_type_map.get(re.sub(r'\d+', '', self._interface_def[key]), self.UndefinedType)
                 try:
                     converted_val = defined_type(value)
                 except ValueError:

@@ -22,7 +22,6 @@ class MiniSegGUI(QMainWindow):
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
         self.bt_connect_task = ConcurrentTask(self.bt_device.connect, self.on_bluetooth_connected, self.on_bluetooth_connection_failed)
         self.bt_receive_task = ConcurrentTask(self.bt_device.receive, repeat_ms=200)
-        
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
