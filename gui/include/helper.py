@@ -2,11 +2,11 @@ import numpy as np
 import pyqtgraph as pg
 
 from collections import UserDict
-from typing import Callable, Optional
+from typing import Callable
 from include.curve_definition import CurveDefinition
 from configuration import THEME, PARAMETERS
 from time import perf_counter
-from PySide6.QtCore import QTime, QTimer, QObject, QEvent, Signal, QThread
+from PySide6.QtCore import QTime, QTimer, QObject, QEvent, Signal, QThread, QMutex, QMutexLocker
 from PySide6.QtWidgets import QMenu
 
 
@@ -29,11 +29,15 @@ class ConcurrentTask:
             self._do_work = do_work
             self._repeat = repeat
             self._loop = True
+            self._loop_mutex = QMutex()
             self.quit.connect(self.on_quit)
 
         def run(self):
             try:
-                while self._loop:
+                self._loop_mutex.lock()
+                loop = self._loop
+                self._loop_mutex.unlock()
+                while loop:
                     self._do_work()
                     self.success.emit()
                     if not self._repeat:
@@ -44,42 +48,53 @@ class ConcurrentTask:
                 self.finished.emit()
 
         def on_quit(self):
+            locker = QMutexLocker(self._loop_mutex)
             self._loop = False
 
     def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[str], None] = None, repeat=False):
 
-        # def create_worker():
-        #     worker = self._ConcurrentWorker(do_work, repeat)
-        #     if on_success:
-        #         worker.success.connect(on_success)
-        #     if on_failed:
-        #         worker.failed.connect(on_failed)
-        #     return worker
+        def create_worker():
+            worker = self._ConcurrentWorker(do_work, repeat)
+            if on_success:
+                worker.success.connect(on_success)
+            if on_failed:
+                worker.failed.connect(on_failed)
+            return worker
 
-        # self.create_worker = create_worker
-        self.worker = self._ConcurrentWorker(do_work, repeat)
-        if on_success:
-            self.worker.success.connect(on_success)
-        if on_failed:
-            self.worker.failed.connect(on_failed)
-        self.thread = QThread()
-        self._setup_task()
+        self.create_worker = create_worker
+        self.worker = None
+        self.thread = None
+        self._task_done_mutex = QMutex()
+        self._task_done = True
 
     def _setup_task(self):
-        # self.worker = self.create_worker()
+        self.worker = self.create_worker()
+        self.thread = QThread()
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
-        # self.worker.finished.connect(self.worker.deleteLater)
-        # self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
 
+        def set_task_done():
+            locker = QMutexLocker(self._task_done_mutex)
+            self._task_done = True
+        self.worker.finished.connect(set_task_done)
 
     def start(self):
-        # self._setup_task()
-        self.thread.start()
+        locker = QMutexLocker(self._task_done_mutex)
+        if self._task_done:
+            self._task_done = False
+            self._setup_task()
+            self.thread.start()
+        else:
+            raise RuntimeError("This task is already running!")
 
-    # def quit(self):
-    #     self.worker
+    def quit(self):
+        locker = QMutexLocker(self._task_done_mutex)
+        if not self._task_done:
+            self.worker.quit.emit()
+
 
 class KeepMenuOpen(QObject):
     def eventFilter(self, obj: QObject, event: QEvent):

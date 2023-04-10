@@ -6,7 +6,7 @@ from functools import reduce
 from pathlib import Path
 from bluetooth import discover_devices, BluetoothSocket
 from typing import Optional, NewType
-from threading import Lock
+from threading import RLock
 from collections import UserDict
 
 
@@ -97,7 +97,7 @@ class BTDevice:
 
     def __init__(self, address: str, interface_json: Path):
         self._address = address
-        self._connect_lock = Lock()
+        self._connect_lock = RLock()
         self._connected = False
         self._socket: Optional[BluetoothSocket] = None
 
@@ -119,7 +119,6 @@ class BTDevice:
         return self._rx_interface
 
     def connect(self):
-        time.sleep(2)
         with self._connect_lock:
             if not self._connected:
                 self._socket = BluetoothSocket()
