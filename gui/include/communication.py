@@ -57,7 +57,7 @@ class Interface(UserDict):
         self.data = {}
         for key, val in interface_def.items():
             if isinstance(val, str):
-                self.data[key] = np.nan
+                self.data[key] = None
             elif isinstance(val, dict):
                 self.data[key] = Interface(val)
             else:
@@ -165,6 +165,7 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 try:
+                    print(json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')))
                     self._socket.sendall(
                         json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
                     )
@@ -181,13 +182,14 @@ class BTDevice:
                     buffer = bytearray()
                     self._socket.settimeout(self._recv_timeout)
                     while True:
-                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                        try:
+                            buffer.extend(self._socket.recv(self._rx_chunk_size))
+                        except TimeoutError:
+                            raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
                         try:
                             json_msg = json.loads(buffer.decode())
                         except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
                             continue
-                        except TimeoutError:
-                            raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
                         else:
                             self.rx_interface.update(json_msg)
                             break

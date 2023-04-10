@@ -42,7 +42,7 @@ class ConcurrentTask:
         def __init__(self, c: Callable, exception: Exception):
             super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
 
-    def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[str], None] = None, repeat_ms: int = None):
+    def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
 
         def create_worker():
             worker = _ConcurrentWorker(do_work)
@@ -197,26 +197,27 @@ class TimeseriesCurve(pg.PlotDataItem):
     def recording_array(self):
         return self._recording_arr
     
-    def append_data(self, ts: float, value: float, *, display=True):
+    def append_data(self, ts: float, value: float | None, *, display=True):
         """
         Updates the curve of the plot by appending a new value at the provided frame timestamp ts.
         The initially defined window size in seconds will be respected.
 
         :param ts: Timestamp of the value that indicates the time elapsed since the start of the application.
-        :param value: Value to append to the curve.
+        :param value: Value to append to the curve. If None nothing will show.
         :param display: Only updates the display if set to True. Otherwise, just stores the data.
         """
         # Initialize timeseries if first time calling
+        _value = np.nan if value is None else value  # Replace None with np.nan
         if not self._visible_timeseries.any():
             t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * PARAMETERS.refresh_rate_hz))  # Initial time axis which is subject to change
             self._visible_timeseries = np.array([t, np.full(t.shape[0], np.nan)])  # Initial values np.nan
         
         # Extend recording array
         if self._recording_active:
-            self._recording_arr = np.append(self._recording_arr, [[ts], [value]], axis=1)
+            self._recording_arr = np.append(self._recording_arr, [[ts], [_value]], axis=1)
         
         # Extend the timeseries data of the curve
-        self._visible_timeseries = np.append(self._visible_timeseries, [[ts], [value]], axis=1)
+        self._visible_timeseries = np.append(self._visible_timeseries, [[ts], [_value]], axis=1)
         while self._visible_timeseries[0, -1] - self._visible_timeseries[0, 0] > self._window_duration:
             self._visible_timeseries = np.delete(self._visible_timeseries, 0, axis=1)
         if display:
