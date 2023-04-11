@@ -146,7 +146,7 @@ class MonitoringGraph(pg.PlotItem):
     """
     earliest_start = QTime.currentTime()
 
-    def __init__(self, curves: list[CurveDefinition], title: str, *, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
+    def __init__(self, curves: list[CurveDefinition], title: str = None, *, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
         super().__init__(**kwargs)
         self.title = title
         self.showGrid(y=True)

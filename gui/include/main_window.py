@@ -7,17 +7,17 @@ from include.concurrent import ConcurrentTask
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
 from PySide6.QtCore import Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
 
 
-# noinspection PyPropertyAccess
 class MiniSegGUI(QMainWindow):
     def __init__(self):
         super().__init__(None)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
+        self.ui.console_splitter.setSizes([2 * QGuiApplication.primaryScreen().virtualSize().height(), 1 * QGuiApplication.primaryScreen().virtualSize().height()])
         
         self.monitors: list[MonitoringWindow] = []
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
@@ -39,6 +39,7 @@ class MiniSegGUI(QMainWindow):
         self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
 
         # Curve definitions
+        # noinspection PyPropertyAccess
         CURVE_LIBRARY["POSITION_SETPOINT"] = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
 
         def add_interface_curve_candidates(accessor: list[str], definition: dict[str, str | dict]):
@@ -54,8 +55,7 @@ class MiniSegGUI(QMainWindow):
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
-            curves=[CURVE_LIBRARY["POSITION_SETPOINT"]],
-            title="Position [cm]"
+            curves=[CURVE_LIBRARY["POSITION_SETPOINT"]]
         )
         self.graphs[0].start()
     

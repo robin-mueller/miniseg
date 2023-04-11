@@ -3,14 +3,9 @@ import QtQuick.Controls
 import Configuration
 
 //import "./dummy"
-Rectangle {
-
-    border.color: Theme.border
-    radius: 10
-    color: "transparent"
-
+Item {
     Label {
-        text: "Position [cm]"
+        text: "Position Setpoint [cm]"
         color: Theme.foreground
         font {
             pixelSize: 16
@@ -77,7 +72,7 @@ Rectangle {
     Slider {
         id: control
 
-        readonly property int sideMargin: 20
+        readonly property int sideMargin: 35
 
         value: backend.value
         onValueChanged: backend.value = value
@@ -101,11 +96,13 @@ Rectangle {
 
         handle: Rectangle {
             id: handle
+
+            implicitWidth: 12
+            implicitHeight: 50
+            radius: 5
+
             x: control.leftPadding + control.visualPosition * (control.availableWidth - width)
             y: control.topPadding + control.availableHeight / 2 - height / 2
-            implicitWidth: 12
-            implicitHeight: 60
-            radius: 5
             color: control.pressed ? Theme.dark_foreground : Theme.foreground
         }
     }
