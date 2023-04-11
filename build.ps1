@@ -4,7 +4,7 @@
 Set-Location $PSScriptRoot
 
 # Generate C++ communication interface code
-controller\src\interface\generate.ps1
+controller\src\communication\generate.ps1
 Set-Location $PSScriptRoot
 
 # Generate gui resources

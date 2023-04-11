@@ -1,24 +1,22 @@
 #include <Arduino.h>
-#include "src/interface/interface.hpp"
-
-ComInterface::RX rx_interface;
-ComInterface::TX tx_interface;
+#include "src/communication/communication.hpp"
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial)
-    ;
+  while (!Serial) {};
 }
 
 void loop() {
-  
 }
 
 void serialEvent() {
-  const DeserializationError err = rx_interface.receive();
+  const DeserializationError err = Communication::receive();
   if (err) return;
-  
-  strlcpy(tx_interface.msg, "TEST", sizeof(tx_interface.msg) / sizeof(*tx_interface.msg));
-  tx_interface.controller_state = rx_interface.controller_state;
-  tx_interface.transmit();
+
+  static int i = 0;
+  if (i++ % 2 == 0) Communication::put_message("TEST");
+
+  Communication::TX.controller_state = Communication::RX.controller_state;
+  Communication::transmit();
+  Communication::put_message("");  // Reset message buffer
 }
