@@ -3,6 +3,7 @@
 
 const DeserializationError ComInterface::RX::receive() {
   StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
+  // Serial.println(Serial.readString());
   const DeserializationError err = deserializeJson(rx_doc, Serial);
   if (err) {
     Serial.print("Deserialization ERROR: Failed with code: ");

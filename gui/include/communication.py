@@ -2,7 +2,6 @@ import json
 import time
 import re
 import select
-import numpy as np
 
 from functools import reduce
 from pathlib import Path
@@ -165,10 +164,7 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 try:
-                    print(json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')))
-                    self._socket.sendall(
-                        json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
-                    )
+                    self._socket.sendall(json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode())
                 except TimeoutError as e:
                     self.disconnect()
                     raise e
@@ -193,7 +189,6 @@ class BTDevice:
                         else:
                             self.rx_interface.update(json_msg)
                             break
-                    print(self.rx_interface.data)
                     return True
                 return False
             else:

@@ -2,8 +2,8 @@ from functools import partial
 from pathlib import Path
 from include.communication import BTDevice, Interface
 from resources.main_window_ui import Ui_MainWindow
-from include.helper import MonitoringGraph, GraphDict, ConcurrentTask
-from include.curve_definition import CurveDefinition, CURVE_LIBRARY
+from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CURVE_LIBRARY
+from include.concurrent import ConcurrentTask
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
 from PySide6.QtCore import Slot
