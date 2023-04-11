@@ -164,7 +164,11 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 try:
-                    self._socket.sendall(json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode())
+                    self._socket.sendall(json.dumps(
+                        self.tx_interface,
+                        cls=Interface.JSONEncoder,
+                        separators=(',', ':')
+                    ).encode())
                 except TimeoutError as e:
                     self.disconnect()
                     raise e

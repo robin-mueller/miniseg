@@ -75,7 +75,7 @@
        <number>8</number>
       </property>
       <widget class="GraphicsLayoutWidget" name="plot_overview"/>
-      <widget class="QTextEdit" name="concole">
+      <widget class="QTextEdit" name="console">
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
@@ -91,6 +91,9 @@
        <property name="readOnly">
         <bool>true</bool>
        </property>
+       <property name="textInteractionFlags">
+        <set>Qt::NoTextInteraction</set>
+       </property>
        <property name="placeholderText">
         <string>Console</string>
        </property>
@@ -105,7 +108,7 @@
      <x>0</x>
      <y>0</y>
      <width>1000</width>
-     <height>21</height>
+     <height>25</height>
     </rect>
    </property>
    <property name="defaultUp">

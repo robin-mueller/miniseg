@@ -6,7 +6,7 @@ from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CURVE_
 from include.concurrent import ConcurrentTask
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
-from PySide6.QtCore import Slot
+from PySide6.QtCore import QTime
 from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
 
@@ -18,11 +18,19 @@ class MiniSegGUI(QMainWindow):
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
         self.ui.console_splitter.setSizes([2 * QGuiApplication.primaryScreen().virtualSize().height(), 1 * QGuiApplication.primaryScreen().virtualSize().height()])
-        
+
         self.monitors: list[MonitoringWindow] = []
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
-        self.bt_connect_task = ConcurrentTask(self.bt_device.connect, self.on_bluetooth_connected, self.on_bluetooth_connection_failed)
-        self.bt_receive_task = ConcurrentTask(self.bt_device.receive, repeat_ms=200)
+        self.bt_connect_task = ConcurrentTask(
+            self.bt_device.connect,
+            on_success=self.on_bluetooth_connected,
+            on_failed=self.on_bluetooth_connection_failed
+        )
+        self.bt_receive_task = ConcurrentTask(
+            self.bt_device.receive,
+            on_success=lambda data_available: self.on_bt_data_available(self.bt_device.rx_interface) if data_available else None,
+            repeat_ms=200
+        )
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
@@ -34,6 +42,7 @@ class MiniSegGUI(QMainWindow):
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bluetooth_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bluetooth_disconnect)
+
 
         # TX interface write triggers
         self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
@@ -50,16 +59,16 @@ class MiniSegGUI(QMainWindow):
                         CURVE_LIBRARY['.'.join(_accessor).upper()] = CurveDefinition('.'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor)))
                 elif isinstance(val, dict):
                     add_interface_curve_candidates(_accessor, val)
+
         add_interface_curve_candidates([], self.bt_device.rx_interface.definition)
-        
+
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
             curves=[CURVE_LIBRARY["POSITION_SETPOINT"]]
         )
         self.graphs[0].start()
-    
-    @Slot()
+
     def on_bluetooth_connect(self):
         self.ui.actionConnect.setEnabled(False)
         self.ui.statusbar.addWidget(self.bt_connect_label)
@@ -69,8 +78,7 @@ class MiniSegGUI(QMainWindow):
 
         # Connect asynchronoulsy
         self.bt_connect_task.start()
-    
-    @Slot()
+
     def on_bluetooth_connected(self):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
@@ -79,33 +87,35 @@ class MiniSegGUI(QMainWindow):
 
         # Start receiving
         self.bt_receive_task.start()
-    
-    @Slot(Exception)
+
     def on_bluetooth_connection_failed(self, exception: Exception):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.actionConnect.setEnabled(True)
         self.ui.statusbar.showMessage(f"Connecting failed - {exception.__class__.__name__}: {str(exception)}", 3000)
-    
-    @Slot()
+
     def on_bluetooth_disconnect(self):
         self.bt_receive_task.stop()
         self.bt_device.disconnect()
         self.ui.actionConnect.setEnabled(True)
         self.ui.actionDisconnect.setEnabled(False)
         self.ui.statusbar.showMessage("Disconnected from device!", 3000)
-    
-    @Slot()
+        self.ui.console.clear()
+
     def on_open_monitor(self):
         new_monitor = MonitoringWindow()
         new_monitor.destroyed.connect(lambda: self.monitors.remove(new_monitor))
         self.monitors.append(new_monitor)
         new_monitor.show()
-    
+
+    def on_bt_data_available(self, rx_data: Interface):
+        received_message: str = rx_data['msg']
+        if received_message:
+            self.ui.console.append(f"{QTime.currentTime().toString()} -> {received_message}")
+
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:
             monitor.close()
         self.bt_receive_task.stop()
         self.bt_device.disconnect()
         super().closeEvent(event)
-        

@@ -4,22 +4,22 @@ from PySide6.QtCore import QTimer, QObject, Signal, QThread, QMutex, QMutexLocke
 
 class _ConcurrentWorker(QObject):
     trigger = Signal()
-    success = Signal()
+    success = Signal(object)
     failed = Signal(Exception)
     finished = Signal()
 
-    def __init__(self, do_work: Callable[[], None]):
+    def __init__(self, do_work: Callable[[], object]):
         super().__init__()
         self._do_work = do_work
         self.trigger.connect(self.run)
 
     def run(self):
         try:
-            self._do_work()
+            ret = self._do_work()
         except Exception as e:
             self.failed.emit(e)
         else:
-            self.success.emit()
+            self.success.emit(ret)
         finally:
             self.finished.emit()
 
@@ -34,7 +34,7 @@ class ConcurrentTask:
         def __init__(self, c: Callable, exception: Exception):
             super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
 
-    def __init__(self, do_work: Callable[[], None], on_success: Callable[[], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
+    def __init__(self, do_work: Callable[[], any], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
 
         def create_worker():
             worker = _ConcurrentWorker(do_work)
