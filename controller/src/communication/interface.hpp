@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 #define JSON_DOC_SIZE_RX 80
-#define JSON_DOC_SIZE_TX 66
+#define JSON_DOC_SIZE_TX 74
 
 namespace Communication {
 
@@ -31,6 +31,7 @@ this->a1.b2.c2 = doc["a1"]["b2"]["c2"];
 static struct TransmitInterface {
 char msg[10];
 bool controller_state;
+int encoder_pos;
 struct {
 float b1;
 struct {
@@ -42,6 +43,7 @@ bool c2;
 void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
 doc["msg"] = this->msg;
 doc["controller_state"] = this->controller_state;
+doc["encoder_pos"] = this->encoder_pos;
 JsonObject a1 = doc.createNestedObject("a1");
 a1["b1"] = this->a1.b1;
 JsonObject b2 = a1.createNestedObject("b2");

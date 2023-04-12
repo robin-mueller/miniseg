@@ -2,6 +2,7 @@
   "from_device": {
     "msg": "char[10]",
     "controller_state": "bool",
+    "encoder_pos": "int",
     "a1": {
       "b1": "float",
       "b2": {
