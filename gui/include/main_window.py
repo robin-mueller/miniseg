@@ -43,8 +43,7 @@ class MiniSegGUI(QMainWindow):
         self.ui.actionConnect.triggered.connect(self.on_bluetooth_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bluetooth_disconnect)
 
-
-        # TX interface write triggers
+        # Write to TX interface
         self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
 
         # Curve definitions
@@ -109,7 +108,7 @@ class MiniSegGUI(QMainWindow):
         new_monitor.show()
 
     def on_bt_data_available(self, rx_data: Interface):
-        received_message: str = rx_data['msg']
+        received_message: str = rx_data["msg"]
         if received_message:
             self.ui.console.append(f"{QTime.currentTime().toString()} -> {received_message}")
 

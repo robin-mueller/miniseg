@@ -26,6 +26,7 @@ bool Communication::transmit() {
   // serializeJsonPretty(tx_doc, Serial);
   // Serial.println("Serialization SUCCESS! TX_DOCSIZE: " + String(tx_doc.memoryUsage()));
   serializeJson(tx_doc, Serial);
+  put_message("");  // Reset message buffer
   return true;
 }
 

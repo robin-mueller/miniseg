@@ -28,5 +28,4 @@ void serialEvent() {
 
   // Communication::TX.controller_state = Communication::RX.controller_state;
   // Communication::transmit();
-  Communication::put_message("");  // Reset message buffer
 }
