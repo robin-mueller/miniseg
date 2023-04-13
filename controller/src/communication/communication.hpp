@@ -6,7 +6,8 @@
 
 namespace Communication {
 
-void put_message(const char* msg);
+const DeserializationError receive(ReceiveInterface &rx_interface);
+bool transmit(TransmitInterface &tx_interface);
 
 }
 

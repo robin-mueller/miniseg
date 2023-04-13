@@ -1,30 +1,32 @@
 #include <Arduino.h>
 #include "src/communication/communication.hpp"
-#include "src/encoder.h"
+#include "src/encoder.hpp"
 
-Encoder enc("Wheel Encoder", ENC_PIN_CHA, ENC_PIN_CHB, update_motor_position, motor_pos, 100);
+static Communication::ReceiveInterface rx_data;
+static Communication::TransmitInterface tx_data;
+static Encoder wheel_position_rad(ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter); // 2 * (2 * PI / 360)
 
 void setup() {
   Serial.begin(9600);
   while (!Serial) {};
 
-  enc.setup();
+  wheel_position_rad.setup();
+
+  // Initial values of RX Interface
+  rx_data.controller_state = false;
 }
 
 void loop() {
   // if (Communication::RX.controller_state) {
-    Communication::TX.encoder_pos = enc();
+    tx_data.encoder_pos = wheel_position_rad();
   // }
-  Communication::transmit();
-  delay(200);
+  Communication::transmit(tx_data);
+  delay(100);
 }
 
 void serialEvent() {
-  const DeserializationError err = Communication::receive();
+  const DeserializationError err = Communication::receive(rx_data);
   if (err) return;
-
-  // static int i = 0;
-  // if (i++ % 2 == 0) Communication::put_message("TEST");
 
   // Communication::TX.controller_state = Communication::RX.controller_state;
   // Communication::transmit();

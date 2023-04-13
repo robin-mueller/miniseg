@@ -1,27 +1,31 @@
-#include "Arduino.h"
-#include "encoder.h"
+#include <stdint.h>
+#include <Arduino.h>
+#include "encoder.hpp"
 
-volatile uint8_t previous_cha = 0;
-volatile int32_t motor_pos = 0;
-void update_motor_position() {
-  uint8_t current_cha = digitalRead(ENC_PIN_CHA);  // Read the current state of CHA
+volatile int32_t enc_counter = 0;
 
-  // If last and current state of CHA are different, then pulse occurred
-  // React to only 1 state change to avoid double count
-  if (current_cha != previous_cha && current_cha == 1) {
-    if (digitalRead(ENC_PIN_CHB) == current_cha) {
-      // Encoder is rotating clockwise
-      motor_pos++;
-    } else {
-      // Encoder is rotating counter clockwise
-      motor_pos--;
-    }
-  }
-  previous_cha = current_cha;
+void encoder_isr() {
+  uint8_t curr_ab = 0;
+  if (digitalRead(ENC_PIN_CHA)) curr_ab |= (1 << 0);  // Writing channel A bit
+  if (digitalRead(ENC_PIN_CHB)) curr_ab |= (1 << 1);  // Writing channel B bit
+  static uint8_t prev_ab = curr_ab;  // At initialization prev_ab is equal to curr_ab
+
+  // Rene Sommer algorithm
+  // Swap bits A and B according to https://www.codevscolor.com/c-program-swap-two-bits-of-number
+  unsigned char a = (prev_ab >> 1) & 1;  // Bit A
+  unsigned char b = (prev_ab >> 0) & 1;  // Bit B
+  unsigned char xorbit = (a ^ b);
+  xorbit = (xorbit << 0) | (xorbit << 1);
+  unsigned char prev_ba = prev_ab ^ xorbit;
+
+  // XOR with next value yields direction
+  if ((prev_ba ^ curr_ab) == 1) enc_counter++; else enc_counter--;
+
+  prev_ab = curr_ab;
 }
 
-Encoder::Encoder(String name, uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& motor_pos, uint32_t freq_hz)
-  : Sensor(name, freq_hz), cha_pin(cha_pin), chb_pin(chb_pin), isr(isr), motor_pos(motor_pos) {}
+Encoder::Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, double transformation, uint32_t freq_hz)
+  : Sensor(freq_hz), cha_pin(cha_pin), chb_pin(chb_pin), isr(isr), counter(counter), transformation(transformation) {}
 
 void Encoder::setup() {
   pinMode(cha_pin, INPUT);
@@ -33,9 +37,9 @@ void Encoder::setup() {
 
 // Reset encoder values
 void Encoder::reset() {
-  this->motor_pos = 0;
+  this->counter = 0;
 }
 
-int32_t Encoder::get_value() {
-  return this->motor_pos;  // A template type cannot be volatile or a reference so this is necessary
+double Encoder::get_value() {
+  return transformation == 1 ? this->counter : transformation * this->counter;
 }
