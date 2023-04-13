@@ -26,7 +26,10 @@ void loop() {
 
 void serialEvent() {
   const DeserializationError err = Communication::receive(rx_data);
-  if (err) return;
+  if (err) {
+    String msg("Deserialization ERROR: Failed with code: " + String(err.f_str()));
+    msg.toCharArray(tx_data.msg, sizeof(tx_data.msg)/sizeof(*tx_data.msg));
+  }
 
   // Communication::TX.controller_state = Communication::RX.controller_state;
   // Communication::transmit();

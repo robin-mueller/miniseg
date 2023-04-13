@@ -1,30 +1,25 @@
 #include <Arduino.h>
 #include "communication.hpp"
 
-const DeserializationError Communication::receive(ReceiveInterface &rx_interface) {
+const DeserializationError Communication::receive(ReceiveInterface &rx_data) {
   StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
-  // Serial.println(Serial.readString());
   const DeserializationError err = deserializeJson(rx_doc, Serial);
-  if (err) {
-    Serial.print("Deserialization ERROR: Failed with code: ");
-    Serial.println(err.f_str());
-  } else {
+  if (!err) {
     // Write to struct
-    rx_interface.from_doc(rx_doc);
-    // Serial.println("Deserialization SUCCESS! RX_DOCSIZE: " + String(rx_doc.memoryUsage()));
+    rx_data.from_doc(rx_doc);
   }
   return err;
 }
 
-bool Communication::transmit(TransmitInterface &tx_interface) {
+bool Communication::transmit(TransmitInterface &tx_data) {
   StaticJsonDocument<JSON_DOC_SIZE_TX> tx_doc;
-  tx_interface.to_doc(tx_doc);
+  tx_data.to_doc(tx_doc);
+  bool success = true;
   if (tx_doc.overflowed()) {
-    Serial.println("Serialization ERROR: Document size for tx_doc too small!");
-    return false;
+    tx_doc.clear();
+    tx_doc["msg"] = "Serialization ERROR: Document size for tx_doc too small!";
+    success = false;
   };
-  // serializeJsonPretty(tx_doc, Serial);
-  // Serial.println("Serialization SUCCESS! TX_DOCSIZE: " + String(tx_doc.memoryUsage()));
 
   // Send 4096 bytes at maximum including 3 bytes header with start char (1 byte) and message length information (2 bytes unencoded)
   char msg_buffer[4093];
@@ -36,6 +31,6 @@ bool Communication::transmit(TransmitInterface &tx_interface) {
   Serial.write(msg_buffer, msg_len);
 
   // Reset message
-  strlcpy(tx_interface.msg, "", sizeof(tx_interface.msg)/sizeof(*tx_interface.msg));
-  return true;
+  strlcpy(tx_data.msg, "", sizeof(tx_data.msg)/sizeof(*tx_data.msg));
+  return success;
 }

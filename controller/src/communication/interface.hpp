@@ -5,23 +5,35 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 22
-#define JSON_DOC_SIZE_TX 288
+#define JSON_DOC_SIZE_RX 80
+#define JSON_DOC_SIZE_TX 320
 
 namespace Communication {
 
 struct ReceiveInterface {
-bool control_state;
+bool controller_state;
+struct {
+float b1;
+struct {
+bool c1;
+bool c2;
+} b2;
+} a1;
 
 void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
 };
 
 struct TransmitInterface {
 char msg[256];
+bool controller_state;
+int encoder_pos;
 struct {
-double pos_rad;
-double vel_rad_s;
-} wheel;
+float b1;
+struct {
+bool c1;
+bool c2;
+} b2;
+} a1;
 
 void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc);
 };
