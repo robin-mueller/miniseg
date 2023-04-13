@@ -1,8 +1,8 @@
 import json
 import time
 import re
-import select
 import warnings
+import select
 
 from functools import reduce
 from pathlib import Path
@@ -197,24 +197,27 @@ class BTDevice:
                     while len(buffer) < self.MSG_HEADER_LEN:
                         buffer.extend(self._socket.recv(self._rx_chunk_size))
                     msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'big')
-                    buffer = buffer[self.MSG_HEADER_LEN:]
+                    msg = buffer[self.MSG_HEADER_LEN:]
 
                     # Receive actual message
-                    while len(buffer) < msg_len:
-                        buffer.extend(self._socket.recv(self._rx_chunk_size))
-                    try:
-                        json_msg = json.loads(buffer[:msg_len].decode())
-                    except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
-                        raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
-                    else:
-                        self.rx_interface.update(json_msg)
-                        buffer = buffer[msg_len:]
-                        if len(buffer) != 0:
-                            warnings.warn(f"Can't keep up with arriving data. {len(buffer)} bytes arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
-                        return True
-                return False
+                    while len(msg) < msg_len:
+                        msg.extend(self._socket.recv(self._rx_chunk_size))
+                    leftover = msg[msg_len:]
+                    if len(leftover) != 0:
+                        warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({leftover}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
+                    # print(msg_len, buffer[:self.MSG_HEADER_LEN])
+                    return bytes(msg)
+                return b''
             else:
                 raise self.NotConnectedError("Cannot receive when the socket is not connected!")
+
+    def deserialize(self, received: bytes):
+        try:
+            json_msg = json.loads(received.decode())
+        except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
+            raise self.InvalidDataError(f"Could not interprete received data: {received}") from None
+        else:
+            return json_msg
 
     @staticmethod
     def discover():

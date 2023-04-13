@@ -3,7 +3,6 @@ from PySide6.QtCore import QTimer, QObject, Signal, QThread
 
 
 class _ConcurrentWorker(QObject):
-    trigger = Signal()
     success = Signal(object)
     failed = Signal(Exception)
     finished = Signal()
@@ -11,7 +10,6 @@ class _ConcurrentWorker(QObject):
     def __init__(self, do_work: Callable[[], object]):
         super().__init__()
         self._do_work = do_work
-        self.trigger.connect(self.run)
 
     def run(self):
         try:
@@ -28,7 +26,7 @@ class ConcurrentTask:
     """
     A persistent handle (meaning the object doesn't have to be reinstantiated every time the task is supposed to start again)
     for a concurrent task using QThread which is defined by the constructor arguments.
-    The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/
+    The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/ and http://blog.debao.me/2013/08/how-to-use-qthread-in-the-right-way-part-1/.
     """
     class WorkFailedError(Exception):
         def __init__(self, c: Callable, exception: Exception):
@@ -48,26 +46,33 @@ class ConcurrentTask:
                 worker.failed.connect(raise_ex)
             return worker
 
+        def create_timer():
+            timer = QTimer()
+            if repeat_ms is None:
+                timer.setSingleShot(True)
+            else:
+                timer.setInterval(repeat_ms)
+            return timer
+
         self.create_worker = create_worker
-        self.worker: _ConcurrentWorker | None = None
+        self.create_timer = create_timer
         self.thread: QThread | None = None
-        self.timer = QTimer()  # TODO: Remove timer and implement timing inside worker while loop!
-        if repeat_ms is None:
-            self.timer.setSingleShot(True)
-        else:
-            self.timer.setInterval(repeat_ms)
-        self.timer.timeout.connect(lambda: self.worker.trigger.emit())
+
+        # References that have to be kept alive for the task to work
+        self._worker = None
+        self._timer = None
 
     def start(self):
         if not self.thread:
-            self.worker = self.create_worker()
+            self._worker = self.create_worker()
+            self._timer = self.create_timer()
             self.thread = QThread()
-            self.worker.moveToThread(self.thread)
-            self.thread.started.connect(self.timer.start)
-            self.thread.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            if self.timer.isSingleShot():
-                self.worker.finished.connect(self.stop)
+            self._worker.moveToThread(self.thread)
+            self._timer.moveToThread(self.thread)  # Let timer execute in subthread to reduce signal clutter in main thread when using quick intervals
+            self._timer.timeout.connect(self._worker.run)
+            if self._timer.isSingleShot():
+                self._worker.finished.connect(self.stop)
+            self.thread.started.connect(self._timer.start)
             self.thread.start()
         else:
             raise RuntimeError("This task is already running!")
@@ -78,8 +83,6 @@ class ConcurrentTask:
         blocks the calling thread until the worker has finished.
         """
         if self.thread:
-            self.timer.stop()
             self.thread.quit()
             self.thread.wait()
-            self.worker = None
             self.thread = None
