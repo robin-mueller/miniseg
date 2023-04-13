@@ -44,7 +44,7 @@ class MiniSegGUI(QMainWindow):
         self.ui.actionDisconnect.triggered.connect(self.on_bt_disconnect)
 
         # Write to TX interface
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"controller_state": val}))
+        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send({"control_state": val}))
 
         # Curve definitions
         # noinspection PyPropertyAccess
@@ -55,7 +55,7 @@ class MiniSegGUI(QMainWindow):
                 _accessor = accessor + [key]
                 if isinstance(val, str):
                     if val in (type_string for type_string, p_type in Interface.VALID_TYPES.items() if p_type in [float, int, bool]):
-                        CURVE_LIBRARY['.'.join(_accessor).upper()] = CurveDefinition('.'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor)))
+                        CURVE_LIBRARY['/'.join(_accessor).upper()] = CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor)))
                 elif isinstance(val, dict):
                     add_interface_curve_candidates(_accessor, val)
 

@@ -21,6 +21,7 @@ class Interface(UserDict):
         "char[]": str,
         "bool": bool,
         "float": float,
+        "double": float,
         "int": int
     }
 
@@ -52,7 +53,7 @@ class Interface(UserDict):
         if not isinstance(interface_def, dict):
             raise TypeError(f"Wrong type of interface_def: {type(interface_def)}. The interface has to be defined as a dict with string or dicts as values.")
         super().__init__()
-        self._lock = RLock()
+        self._access_lock = RLock()
         self._interface_def = interface_def
         self.data = {}
         for key, val in interface_def.items():
@@ -68,7 +69,7 @@ class Interface(UserDict):
         return self._interface_def
 
     def __getitem__(self, key: str | tuple):
-        with self._lock:
+        with self._access_lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 try:
                     return super().__getitem__(key)
@@ -80,7 +81,7 @@ class Interface(UserDict):
                 raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
     def __setitem__(self, key: str | tuple, value):
-        with self._lock:
+        with self._access_lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 if key not in self:
                     raise self.UnmatchedKeyError(key, self)
@@ -168,12 +169,10 @@ class BTDevice:
             self.tx_interface.update(write)
         with self._connect_lock:
             if self._connected:
+                msg_bytes = json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
+                msg_bytes = b'\n' + len(msg_bytes).to_bytes(2, 'little') + msg_bytes
                 try:
-                    self._socket.sendall(json.dumps(
-                        self.tx_interface,
-                        cls=Interface.JSONEncoder,
-                        separators=(',', ':')
-                    ).encode())
+                    self._socket.sendall(msg_bytes)
                 except TimeoutError as e:
                     self.disconnect()
                     raise e
@@ -189,19 +188,25 @@ class BTDevice:
 
                     # Receive header that contains start bit and message length
                     while True:
-                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                        b = self._socket.recv(self._rx_chunk_size)
+                        if b == b'':  # If socket was closed from other side
+                            return b''
+                        buffer.extend(b)
                         msg_start = buffer.find(b'\n')
                         if msg_start != -1:
                             break
                     buffer = buffer[msg_start:]
                     while len(buffer) < self.MSG_HEADER_LEN:
                         buffer.extend(self._socket.recv(self._rx_chunk_size))
-                    msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'big')
+                    msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'little')
                     msg = buffer[self.MSG_HEADER_LEN:]
 
                     # Receive actual message
                     while len(msg) < msg_len:
-                        msg.extend(self._socket.recv(self._rx_chunk_size))
+                        b = self._socket.recv(self._rx_chunk_size)
+                        if b == b'':  # If socket was closed from other side
+                            return b''
+                        msg.extend(b)
                     leftover = msg[msg_len:]
                     if len(leftover) != 0:
                         warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({leftover}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
@@ -230,9 +235,7 @@ class BTDevice:
 if __name__ == "__main__":
     device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
     device.tx_interface["controller_state"] = True
-    device.tx_interface["a1", "b1"] = 5.5
     device.connect()
-    print("Send: " + str(device.tx_interface))
     device.send()
     time.sleep(0.5)
     device.disconnect()

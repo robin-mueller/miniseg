@@ -63,6 +63,9 @@ class ConcurrentTask:
         self._timer = None
 
     def start(self):
+        """
+        Creates the worker thread and starts the task execution.
+        """
         if not self.thread:
             self._worker = self.create_worker()
             self._timer = self.create_timer()
@@ -86,3 +89,5 @@ class ConcurrentTask:
             self.thread.quit()
             self.thread.wait()
             self.thread = None
+            self._worker = None
+            self._timer = None
