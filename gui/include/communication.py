@@ -2,6 +2,7 @@ import json
 import time
 import re
 import select
+import warnings
 
 from functools import reduce
 from pathlib import Path
@@ -117,10 +118,14 @@ class BTDevice:
     class InvalidDataError(Exception):
         pass
 
-    def __init__(self, address: str, interface_json: Path, connect_timeout_sec: float = 5.0, receive_timeout_sec: float = 1.0, rx_chunk_size: int = 1024):
+    MSG_START_TOKEN = b'\n'
+    MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
+    MSG_SIZE_HINT_LEN = 2
+    MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
+
+    def __init__(self, address: str, interface_json: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096):
         self._address = address
         self._conn_timeout = connect_timeout_sec
-        self._recv_timeout = receive_timeout_sec
         self._rx_chunk_size = rx_chunk_size
         self._connect_lock = RLock()  # Needs to be reentrant because of the except statement in self.publish()
         self._connected = False
@@ -180,20 +185,33 @@ class BTDevice:
             if self._connected:
                 if select.select([self._socket], [], [], 0)[0]:  # Check for available data
                     buffer = bytearray()
-                    self._socket.settimeout(self._recv_timeout)
+                    self._socket.settimeout(1)
+
+                    # Receive header that contains start bit and message length
                     while True:
-                        try:
-                            buffer.extend(self._socket.recv(self._rx_chunk_size))
-                        except TimeoutError:
-                            raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
-                        try:
-                            json_msg = json.loads(buffer.decode())
-                        except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
-                            continue
-                        else:
-                            self.rx_interface.update(json_msg)
+                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                        msg_start = buffer.find(b'\n')
+                        if msg_start != -1:
                             break
-                    return True
+                    buffer = buffer[msg_start:]
+                    while len(buffer) < self.MSG_HEADER_LEN:
+                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                    msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'big')
+                    buffer = buffer[self.MSG_HEADER_LEN:]
+
+                    # Receive actual message
+                    while len(buffer) < msg_len:
+                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                    try:
+                        json_msg = json.loads(buffer[:msg_len].decode())
+                    except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
+                        raise self.InvalidDataError(f"Could not interprete received data: {buffer.decode()}")
+                    else:
+                        self.rx_interface.update(json_msg)
+                        buffer = buffer[msg_len:]
+                        if len(buffer) != 0:
+                            warnings.warn(f"Can't keep up with arriving data. {len(buffer)} bytes arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
+                        return True
                 return False
             else:
                 raise self.NotConnectedError("Cannot receive when the socket is not connected!")

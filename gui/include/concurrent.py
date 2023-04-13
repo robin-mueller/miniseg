@@ -1,5 +1,5 @@
 from typing import Callable
-from PySide6.QtCore import QTimer, QObject, Signal, QThread, QMutex, QMutexLocker
+from PySide6.QtCore import QTimer, QObject, Signal, QThread
 
 
 class _ConcurrentWorker(QObject):
@@ -51,30 +51,23 @@ class ConcurrentTask:
         self.create_worker = create_worker
         self.worker: _ConcurrentWorker | None = None
         self.thread: QThread | None = None
-        self.timer = QTimer()
-        if repeat_ms:
-            self.timer.setInterval(repeat_ms)
-        else:
+        self.timer = QTimer()  # TODO: Remove timer and implement timing inside worker while loop!
+        if repeat_ms is None:
             self.timer.setSingleShot(True)
+        else:
+            self.timer.setInterval(repeat_ms)
         self.timer.timeout.connect(lambda: self.worker.trigger.emit())
-        self._task_dead_mutex = QMutex()
-        self._task_dead = True
-
-    def _setup(self):
-        self.worker = self.create_worker()
-        self.thread = QThread()
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.timer.start)
-        self.thread.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        if self.timer.isSingleShot():
-            self.worker.finished.connect(self.stop)
 
     def start(self):
-        locker = QMutexLocker(self._task_dead_mutex)
-        if self._task_dead:
-            self._task_dead = False
-            self._setup()
+        if not self.thread:
+            self.worker = self.create_worker()
+            self.thread = QThread()
+            self.worker.moveToThread(self.thread)
+            self.thread.started.connect(self.timer.start)
+            self.thread.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            if self.timer.isSingleShot():
+                self.worker.finished.connect(self.stop)
             self.thread.start()
         else:
             raise RuntimeError("This task is already running!")
@@ -84,11 +77,9 @@ class ConcurrentTask:
         If the task is not done yet, this method stops the task and
         blocks the calling thread until the worker has finished.
         """
-        locker = QMutexLocker(self._task_dead_mutex)
-        if not self._task_dead:
+        if self.thread:
             self.timer.stop()
             self.thread.quit()
             self.thread.wait()
             self.worker = None
             self.thread = None
-            self._task_dead = True

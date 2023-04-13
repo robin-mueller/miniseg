@@ -29,7 +29,7 @@ class MiniSegGUI(QMainWindow):
         self.bt_receive_task = ConcurrentTask(
             self.bt_device.receive,
             on_success=lambda data_available: self.on_bt_data_available(self.bt_device.rx_interface) if data_available else None,
-            repeat_ms=200
+            repeat_ms=0
         )
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
