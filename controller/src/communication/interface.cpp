@@ -2,11 +2,11 @@
 
 #include "interface.hpp"
 
-void Communication::RX::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
+void Communication::ReceiveInterface::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
 this->control_state = doc["control_state"];
 }
 
-void Communication::TX::to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
+void Communication::TransmitInterface::to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
 doc["msg"] = this->msg;
 JsonObject wheel = doc.createNestedObject("wheel");
 wheel["pos_rad"] = this->wheel.pos_rad;

@@ -13,12 +13,11 @@ uint8_t read_ab();
 
 void encoder_isr();
 
-class Encoder : public Sensor<double> {
+class Encoder : public Sensor {
 private:
   uint8_t cha_pin, chb_pin;
   void (*isr)();
   volatile int32_t& counter;
-  double transformation;
 
   virtual double get_value() override;
 

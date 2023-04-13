@@ -25,7 +25,7 @@ void encoder_isr() {
 }
 
 Encoder::Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, double transformation, uint32_t freq_hz)
-  : Sensor(freq_hz), cha_pin(cha_pin), chb_pin(chb_pin), isr(isr), counter(counter), transformation(transformation) {}
+  : Sensor(transformation, freq_hz), cha_pin(cha_pin), chb_pin(chb_pin), isr(isr), counter(counter) {}
 
 void Encoder::setup() {
   pinMode(cha_pin, INPUT);
@@ -41,5 +41,5 @@ void Encoder::reset() {
 }
 
 double Encoder::get_value() {
-  return transformation == 1 ? this->counter : transformation * this->counter;
+  return this->counter;
 }

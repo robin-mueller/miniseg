@@ -1,24 +1,12 @@
 {
   "from_device": {
     "msg": "char[256]",
-    "controller_state": "bool",
-    "encoder_pos": "int",
-    "a1": {
-      "b1": "float",
-      "b2": {
-        "c1": "bool",
-        "c2": "bool"
-      }
+    "wheel": {
+      "pos_rad": "double",
+      "vel_rad_s": "double"
     }
   },
   "to_device": {
-    "controller_state": "bool",
-    "a1": {
-      "b1": "float",
-      "b2": {
-        "c1": "bool",
-        "c2": "bool"
-      }
-    }
+    "control_state": "bool"
   }
 }

@@ -1,12 +1,14 @@
-#ifndef MESSAGE_HPP
-#define MESSAGE_HPP
+#ifndef COMMUNICATION_HPP
+#define COMMUNICATION_HPP
 
 #include <Arduino.h>
 #include "interface.hpp"
 
 namespace Communication {
 
-const DeserializationError receive(ReceiveInterface &rx_interface);
+constexpr unsigned int TX_MSG_BUF_SIZE = sizeof(TransmitInterface::msg);
+
+const DeserializationError read(const char *msg, ReceiveInterface &rx_interface);
 bool transmit(TransmitInterface &tx_interface);
 
 }
