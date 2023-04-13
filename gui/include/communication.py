@@ -21,6 +21,7 @@ class Interface(UserDict):
         "char[]": str,
         "bool": bool,
         "float": float,
+        "double": float,
         "int": int
     }
 

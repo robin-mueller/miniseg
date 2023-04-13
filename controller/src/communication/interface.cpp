@@ -3,19 +3,12 @@
 #include "interface.hpp"
 
 void Communication::ReceiveInterface::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
-this->controller_state = doc["controller_state"];
-this->a1.b1 = doc["a1"]["b1"];
-this->a1.b2.c1 = doc["a1"]["b2"]["c1"];
-this->a1.b2.c2 = doc["a1"]["b2"]["c2"];
+this->control_state = doc["control_state"];
 }
 
 void Communication::TransmitInterface::to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
 doc["msg"] = this->msg;
-doc["controller_state"] = this->controller_state;
-doc["encoder_pos"] = this->encoder_pos;
-JsonObject a1 = doc.createNestedObject("a1");
-a1["b1"] = this->a1.b1;
-JsonObject b2 = a1.createNestedObject("b2");
-b2["c1"] = this->a1.b2.c1;
-b2["c2"] = this->a1.b2.c2;
+JsonObject wheel = doc.createNestedObject("wheel");
+wheel["pos_rad"] = this->wheel.pos_rad;
+wheel["vel_rad_s"] = this->wheel.vel_rad_s;
 }

@@ -1,13 +1,10 @@
 #include <Arduino.h>
 #include "communication.hpp"
 
-const DeserializationError Communication::receive(ReceiveInterface &rx_data) {
+const DeserializationError Communication::read(const char *msg, ReceiveInterface &rx_data) {
   StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
-  const DeserializationError err = deserializeJson(rx_doc, Serial);
-  if (!err) {
-    // Write to struct
-    rx_data.from_doc(rx_doc);
-  }
+  const DeserializationError err = deserializeJson(rx_doc, msg);
+  if (!err) rx_data.from_doc(rx_doc);
   return err;
 }
 
@@ -26,8 +23,8 @@ bool Communication::transmit(TransmitInterface &tx_data) {
   serializeJson(tx_doc, msg_buffer);
   uint16_t msg_len = strlen(msg_buffer);
   Serial.write('\n');
-  Serial.write(highByte(msg_len));
   Serial.write(lowByte(msg_len));
+  Serial.write(highByte(msg_len));
   Serial.write(msg_buffer, msg_len);
 
   // Reset message
