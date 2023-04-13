@@ -197,7 +197,10 @@ class BTDevice:
                             break
                     buffer = buffer[msg_start:]
                     while len(buffer) < self.MSG_HEADER_LEN:
-                        buffer.extend(self._socket.recv(self._rx_chunk_size))
+                        b = self._socket.recv(self._rx_chunk_size)
+                        if b == b'':  # If socket was closed from other side
+                            return b''
+                        buffer.extend(b)
                     msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'little')
                     msg = buffer[self.MSG_HEADER_LEN:]
 
