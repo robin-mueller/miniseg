@@ -1,6 +1,6 @@
 {
   "from_device": {
-    "msg": "char[10]",
+    "msg": "char[256]",
     "controller_state": "bool",
     "encoder_pos": "int",
     "a1": {
