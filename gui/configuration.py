@@ -46,5 +46,3 @@ qmlRegisterSingletonType(Theme, "Configuration", 1, 0, "Theme")
 
 PARAMETERS = Parameters()
 THEME = Theme()
-
-

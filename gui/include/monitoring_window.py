@@ -1,10 +1,13 @@
+import itertools
 import pandas as pd
 
+from functools import partial
+from collections import UserDict
 from typing import Optional
 from pathlib import Path
 from configuration import PARAMETERS
 from include.helper import KeepMenuOpen
-from include.plotting import MonitoringGraph, GraphDict, CURVE_LIBRARY
+from include.plotting import MonitoringGraph, GraphDict, CurveLibrary, CurveDefinition, ColouredCurve
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QMenu, QFileDialog
@@ -25,9 +28,16 @@ class MonitoringWindow(QMainWindow):
         self.ui.actionAddGraph.triggered.connect(self.add_graph)
         self.ui.actionStartRecording.triggered.connect(self.start_recording)
         self.ui.actionStopRecording.triggered.connect(self.stop_recording)
-        
-        self.graphs: GraphDict[int, MonitoringGraph] = GraphDict(self.ui.graph_layout)
-    
+
+        self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.graph_layout)
+
+    def update_curve_colors(self):
+        curves: set[CurveDefinition] = set(itertools.chain(*[graph.curves_dict.keys() for graph in self.graphs.values()]))
+        colors = CurveLibrary.colorize(curves)
+        for graph in self.graphs.values():
+            for curve_definition, curve in graph.curves_dict.items():
+                curve.setPen(colors[curve_definition])
+
     def add_graph(self):
         graph_id = 0
         while graph_id in self.graphs:
@@ -38,28 +48,32 @@ class MonitoringWindow(QMainWindow):
         graph_menu.installEventFilter(self.keep_menu_open_filter)
         remove_action = graph_menu.addAction("Remove")
         graph_menu.addSection("Curves")
-        curve_actions: dict[str, QAction] = {name: graph_menu.addAction(name) for name in CURVE_LIBRARY}
-        
-        def create_graph():
-            curves = [CURVE_LIBRARY[name] for name, action in curve_actions.items() if action.isChecked()]
-            self.graphs[graph_id] = MonitoringGraph(curves, graph_title)
-            self.graphs[graph_id].start()
-            
+        curve_actions: dict[str, QAction] = {name: graph_menu.addAction(name) for name in CurveLibrary.definitions()}
+
+        def toggle_curve(curve_definition: CurveDefinition, show: bool):
+            if show:
+                self.graphs[graph_id].add_curve(ColouredCurve(curve_definition))
+            else:
+                self.graphs[graph_id].remove_curve(curve_definition)
+            self.update_curve_colors()
+
         def delete_graph():
             graph_menu.deleteLater()
             del self.graphs[graph_id]
-            
+            self.update_curve_colors()
+
         remove_action.triggered.connect(delete_graph)
-        for action in curve_actions.values():
+        for name, action in curve_actions.items():
             action.setCheckable(True)
-            action.triggered.connect(create_graph)
-        
-        create_graph()
-        
+            action.toggled.connect(partial(toggle_curve, CurveLibrary.definitions(name)))
+
+        self.graphs[graph_id] = MonitoringGraph(title=graph_title)
+        self.graphs[graph_id].start()
+
     def start_recording(self):
-        if any([graph.curve_dict for graph in self.graphs.values()]):  # Only start recording if any curves have been defined
+        if any([graph.curves_dict for graph in self.graphs.values()]):  # Only start recording if any curves have been defined
             for graph in self.graphs.values():
-                for curve in graph.curve_dict.values():
+                for curve in graph.curves_dict.values():
                     curve.recording = True
             self.ui.actionStartRecording.setEnabled(False)
             self.ui.actionStopRecording.setEnabled(True)
@@ -67,7 +81,7 @@ class MonitoringWindow(QMainWindow):
 
     def stop_recording(self):
         for graph in self.graphs.values():
-            for curve in graph.curve_dict.values():
+            for curve in graph.curves_dict.values():
                 curve.recording = False
         self.ui.actionStartRecording.setEnabled(True)
         self.ui.actionStopRecording.setEnabled(False)
@@ -80,7 +94,7 @@ class MonitoringWindow(QMainWindow):
 
         df = []
         for graph in self.graphs.values():
-            for curve_def, curve in graph.curve_dict.items():
+            for curve_def, curve in graph.curves_dict.items():
                 df.append(pd.DataFrame(curve.recording_array.T, columns=pd.MultiIndex.from_product([[graph.title], [curve_def.label], ['Time', 'Value']])))
         df = pd.concat(df, axis=1)
 

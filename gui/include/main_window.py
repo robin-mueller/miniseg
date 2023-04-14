@@ -1,8 +1,9 @@
 from functools import partial
 from pathlib import Path
+from configuration import THEME
 from include.communication import BTDevice, Interface
 from resources.main_window_ui import Ui_MainWindow
-from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CURVE_LIBRARY
+from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, ColouredCurve
 from include.concurrent import ConcurrentTask
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
@@ -48,14 +49,14 @@ class MiniSegGUI(QMainWindow):
 
         # Curve definitions
         # noinspection PyPropertyAccess
-        CURVE_LIBRARY["POSITION_SETPOINT"] = CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value)
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value))
 
         def add_interface_curve_candidates(accessor: list[str], definition: dict[str, str | dict]):
             for key, val in definition.items():
                 _accessor = accessor + [key]
                 if isinstance(val, str):
                     if val in (type_string for type_string, p_type in Interface.VALID_TYPES.items() if p_type in [float, int, bool]):
-                        CURVE_LIBRARY['/'.join(_accessor).upper()] = CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor)))
+                        CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor))))
                 elif isinstance(val, dict):
                     add_interface_curve_candidates(_accessor, val)
 
@@ -64,7 +65,7 @@ class MiniSegGUI(QMainWindow):
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
-            curves=[CURVE_LIBRARY["POSITION_SETPOINT"]]
+            curves=[CurveLibrary.definitions("POSITION_SETPOINT", THEME.primary)]
         )
         self.graphs[0].start()
 

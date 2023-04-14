@@ -10,22 +10,50 @@ from time import perf_counter
 from PySide6.QtCore import QTime, QTimer
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class CurveDefinition:
     """
-    Class for creating monitoring curve definitions
+    Class for creating monitoring curve definitions.
 
     - label: Name of the curve.
     - get_func: Getter function of the respective value.
-    - color: Pen color of the curve represented by one of b, g, r, c, m, y, k, w or other types specified here: https://pyqtgraph.readthedocs.io/en/latest/user_guide/style.html#line-fill-and-color.
-             If None, color gets chosen automatically
     """
     label: str
     get_func: Callable[[], float]
+
+
+@dataclass
+class ColouredCurve:
+    """
+    Helper class to define an initial color together with the curve.
+
+    - definition: CurveDefinition instance.
+    - color: Pen color of the curve represented by one of b, g, r, c, m, y, k, w or other types specified here: https://pyqtgraph.readthedocs.io/en/latest/user_guide/style.html#line-fill-and-color.
+             If None, color is chosen automatically.
+    """
+    definition: CurveDefinition
     color: any = None
 
 
-CURVE_LIBRARY: dict[str, CurveDefinition] = {}
+class CurveLibrary:
+    _DEFS: dict[str, CurveDefinition] = {}
+
+    @staticmethod
+    def colorize(curves: set[CurveDefinition]) -> dict[CurveDefinition, str]:
+        color_palette = sns.color_palette('husl', len(curves)).as_hex()
+        return {curve: color_palette[index] for index, curve in enumerate(curves)}
+
+    @classmethod
+    def add_definition(cls, key: str, curve_definition: CurveDefinition):
+        cls._DEFS[key] = curve_definition
+
+    @classmethod
+    def definitions(cls, key: str = None, color: any = None):
+        if key is None:
+            return cls._DEFS
+        if color is None:
+            return cls._DEFS[key]
+        return ColouredCurve(cls._DEFS[key], color)
 
 
 class ScheduledValue:
@@ -85,15 +113,14 @@ class ScheduledValue:
 
 
 class TimeseriesCurve(pg.PlotDataItem):
-    def __init__(self, curve_definition: CurveDefinition, window_size_sec: float, color_hex: str):
+    def __init__(self, curve: ColouredCurve, window_size_sec: float):
         """
         A pyqtgraph PlotDataItem that scrolls the x axis when its data is being updated.
 
-        :param curve_definition: A set of definition parameters.
+        :param curve: A set of definition parameters.
         :param window_size_sec: The length of the plotted curve in seconds.
-        :param color_hex: A HEX code specifiying the curve color.
         """
-        super().__init__(name=curve_definition.label, pen=pg.mkPen(color=color_hex, width=1))
+        super().__init__(name=curve.definition.label, pen=pg.mkPen(color=curve.color, width=1))
         self._window_duration = window_size_sec
         self._visible_timeseries = np.array([[], []])
         self._recording_active = False
@@ -146,7 +173,7 @@ class MonitoringGraph(pg.PlotItem):
     """
     earliest_start = QTime.currentTime()
 
-    def __init__(self, curves: list[CurveDefinition], title: str = None, *, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
+    def __init__(self, curves: list[ColouredCurve] = None, *, title: str = None, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
         super().__init__(**kwargs)
         self.title = title
         self.showGrid(y=True)
@@ -154,19 +181,26 @@ class MonitoringGraph(pg.PlotItem):
         self.setMouseEnabled(x=False)
         self.setLabel('left', ylabel, color=THEME.foreground)
         self.setLabel('bottom', xlabel)
+        self._window_size = window_size_sec
 
         # Add data to plot
-        color_palette = sns.color_palette('husl', len(curves)).as_hex()
-        self._graph_curves: dict[CurveDefinition, TimeseriesCurve] = {
-            curve_def: TimeseriesCurve(curve_def, window_size_sec, color_palette[index] if curve_def.color is None else curve_def.color)
-            for index, curve_def in enumerate(curves)
-        }
-        for curve in self._graph_curves.values():
-            self.addItem(curve)
+        self._curves_dict: dict[CurveDefinition, TimeseriesCurve] = {}
+        if curves:
+            for curve in curves:
+                self.add_curve(curve)
 
         self.timer = QTimer()
         # noinspection PyUnresolvedReferences
         self.timer.timeout.connect(self._update)
+
+    def add_curve(self, curve: ColouredCurve):
+        _curve = TimeseriesCurve(curve, self._window_size)
+        self._curves_dict[curve.definition] = _curve
+        self.addItem(_curve)
+
+    def remove_curve(self, curve_definition: CurveDefinition):
+        self.removeItem(self._curves_dict[curve_definition])
+        del self._curves_dict[curve_definition]
 
     @property
     def title(self):
@@ -177,25 +211,24 @@ class MonitoringGraph(pg.PlotItem):
         self.setTitle(text, color=THEME.foreground, size='18px')
 
     @property
-    def curve_dict(self):
-        return self._graph_curves
+    def curves_dict(self):
+        return self._curves_dict
 
     def _update(self):
-        for curve_def, data in self._graph_curves.items():
-            data.append_data(MonitoringGraph.earliest_start.msecsTo(QTime.currentTime()) / 1000, curve_def.get_func())
+        for curve_def, ts in self._curves_dict.items():
+            ts.append_data(MonitoringGraph.earliest_start.msecsTo(QTime.currentTime()) / 1000, curve_def.get_func())
 
     def start(self, interval_hz: int = PARAMETERS.refresh_rate_hz):
-        if self._graph_curves:
-            current_time = QTime.currentTime()
-            if MonitoringGraph.earliest_start > current_time:
-                MonitoringGraph.earliest_start = current_time
-            self.timer.start(round(1000 / interval_hz))
+        current_time = QTime.currentTime()
+        if MonitoringGraph.earliest_start > current_time:
+            MonitoringGraph.earliest_start = current_time
+        self.timer.start(round(1000 / interval_hz))
 
 
 class GraphDict(UserDict):
-    def __init__(self, grpahics_layout: pg.GraphicsLayout, dictionary=None, /, **kwargs):
+    def __init__(self, graphics_layout_widget: pg.GraphicsLayoutWidget, dictionary=None, /, **kwargs):
         super().__init__(dictionary, **kwargs)
-        self._layout = grpahics_layout
+        self._layout = graphics_layout_widget.ci
 
     def __setitem__(self, key: int, item: MonitoringGraph):
         assert isinstance(key, int), TypeError("Keys have to be strings!")
@@ -205,14 +238,11 @@ class GraphDict(UserDict):
         if key in self.keys():
             self._remove_graph_from_layout(key)
 
+        # Assign item to dict
         super().__setitem__(key, item)
 
-        # Insert item to layout
-        existing_item = self._layout.getItem(row=key, col=1)
-        self._layout.addItem(item, row=key, col=1)  # Place item
-        while existing_item is not None:
-            existing_item = self._layout.getItem(row=key + 1, col=1)  # Copy item that occupies the slot for existing_item
-            self._layout.addItem(existing_item, row=key + 1, col=1)  # Place existing_item
+        # Add new graph to position of old graph
+        self._layout.addItem(item, row=key, col=1)
 
     def __delitem__(self, key: int):
         self._remove_graph_from_layout(key)
