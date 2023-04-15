@@ -1,0 +1,6 @@
+[submodule "controller/libraries/ArduinoJson"]
+	path = controller/libraries/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git
+[submodule "controller/libraries/MPU9250"]
+	path = controller/libraries/MPU9250
+	url = https://github.com/hideakitai/MPU9250.git

@@ -1,12 +1,23 @@
 {
-  "from_device": {
+  "FROM_DEVICE": {
     "msg": "char[256]",
     "wheel": {
       "pos_rad": "double",
-      "vel_rad_s": "double"
+      "pos_deriv_rad_s": "double"
+    },
+    "tilt": {
+      "angle_deg": {
+        "from_pitch": "double",
+        "from_acc": "double"
+      },
+      "angle_deriv_deg_s": {
+        "from_pitch": "double",
+        "from_acc": "double"
+      },
+      "vel_deg_s": "double"
     }
   },
-  "to_device": {
+  "TO_DEVICE": {
     "control_state": "bool"
   }
 }

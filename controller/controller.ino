@@ -1,15 +1,24 @@
 #include <Arduino.h>
 #include "src/communication/communication.hpp"
 #include "src/encoder.hpp"
+#include "src/mpu.hpp"
 
-static Communication::ReceiveInterface rx_data;
-static Communication::TransmitInterface tx_data;
-static Encoder wheel_position_rad(ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360));
+#define UPDATE_INTERVAL_MS 100
+
+Communication::ReceiveInterface rx_data;
+Communication::TransmitInterface tx_data;
+Communication::MessageHandler message(tx_data.msg);
+Encoder wheel_position_rad(ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360));
+MinSegMPU mpu;
 
 void setup() {
   Serial.begin(9600);
   while (!Serial) {};
 
+  // MPU Setup
+  MinSegMPU();
+  
+  // Encoder setup
   wheel_position_rad.setup();
 
   // Initial values of RX Interface
@@ -17,19 +26,40 @@ void setup() {
 }
 
 void loop() {
-  Communication::transmit(tx_data);
+  static uint32_t cycle_start_ms = 0;
+  bool new_mpu_data = mpu.update();
 
-  if (rx_data.control_state) {
+  if (new_mpu_data && millis() > cycle_start_ms + UPDATE_INTERVAL_MS) {
+    cycle_start_ms = millis();
+
+    // Assign values to tx interface
     tx_data.wheel.pos_rad = wheel_position_rad();
-    tx_data.wheel.vel_rad_s = wheel_position_rad.derivative();
-  }
+    tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
+    tx_data.tilt.angle_deg.from_acc = mpu.tilt_angle_from_acc_deg();
+    tx_data.tilt.angle_deg.from_pitch = mpu.tilt_angle_from_pitch_deg();
+    tx_data.tilt.angle_deriv_deg_s.from_acc = mpu.tilt_angle_from_acc_deg.derivative();
+    tx_data.tilt.angle_deriv_deg_s.from_pitch = mpu.tilt_angle_from_pitch_deg.derivative();
+    tx_data.tilt.vel_deg_s = mpu.tilt_vel_deg_s();
 
-  delay(100);
-  Sensor::cycle_num++;
+    // Reference controller state
+    // double &wheel_pos_rad = tx_data.wheel.pos_rad;
+    // double &tilt_angle_deg = ;
+    // double &tilt_vel_deg_s = ;
+
+
+    if (rx_data.control_state) {
+      
+    }
+
+    // Finish loop
+    // Communication::transmit(tx_data);
+    message.clear();
+    Sensor::cycle_num++;
+  }
 }
 
 void serialEvent() {
-  char buffer[4096]{ 0 };
+  char buffer[1024]{ 0 };
   union {
     uint16_t integer = 0;
     byte arr[2];
@@ -43,16 +73,16 @@ void serialEvent() {
     Serial.readBytes(buffer, msg_len.integer);
     const DeserializationError err = Communication::read(buffer, rx_data);
     if (err) {
-      String msg("Deserialization ERROR: Failed with code: " + String(err.f_str()));
-      msg.toCharArray(tx_data.msg, Communication::TX_MSG_BUF_SIZE);
+      message.append("Deserialization ERROR: Failed with code: ", false);
+      message.append(err.c_str());
       return;
     }
 
     // React to received data
     if (rx_data.control_state) {
-      String("Control enabled!").toCharArray(tx_data.msg, Communication::TX_MSG_BUF_SIZE);
+      message.append("Control enabled!");
     } else {
-      String("Control disabled!").toCharArray(tx_data.msg, Communication::TX_MSG_BUF_SIZE);
+      message.append("Control disabled!");
     }
   }
 }

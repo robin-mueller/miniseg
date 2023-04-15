@@ -27,7 +27,22 @@ bool Communication::transmit(TransmitInterface &tx_data) {
   Serial.write(highByte(msg_len));
   Serial.write(msg_buffer, msg_len);
 
-  // Reset message
-  strlcpy(tx_data.msg, "", sizeof(tx_data.msg)/sizeof(*tx_data.msg));
   return success;
+}
+
+Communication::MessageHandler::MessageHandler(char *message_buffer) : buf(message_buffer), buf_size(sizeof(buf)) {
+  clear();
+}
+
+bool Communication::MessageHandler::append(const char *msg, bool new_line) {
+  size_t existing_len = strlen(buf);
+  size_t append_len = strlcpy(&buf[existing_len], msg, buf_size - existing_len);
+  if (new_line) {
+    return append("\n", false);
+  }
+  return append_len < buf_size - existing_len;
+}
+
+void Communication::MessageHandler::clear() {
+  strlcpy(buf, "", buf_size);
 }

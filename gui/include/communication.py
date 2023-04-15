@@ -135,11 +135,11 @@ class BTDevice:
         with interface_json.open() as interface_file:
             interface_specifiers = json.load(interface_file)
             try:
-                self._tx_interface = Interface(interface_specifiers["to_device"])
-                self._rx_interface = Interface(interface_specifiers["from_device"])
+                self._tx_interface = Interface(interface_specifiers["TO_DEVICE"])
+                self._rx_interface = Interface(interface_specifiers["FROM_DEVICE"])
             except (TypeError, KeyError):
                 raise self.InvalidDataError("Base key(s) not found! "
-                                            "Specifiers for the data interface to and from the device have to be listed under the keys 'to_device' and 'from_device' respectively.")
+                                            "Specifiers for the data interface to and from the device have to be listed under the keys 'TO_DEVICE' and 'FROM_DEVICE' respectively.")
 
     @property
     def tx_interface(self):
