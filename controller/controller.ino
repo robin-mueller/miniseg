@@ -3,7 +3,16 @@
 #include "src/encoder.hpp"
 #include "src/mpu.hpp"
 
-#define UPDATE_INTERVAL_MS 500
+/* 
+Determines the frequency of actuation changes and serial data transmit
+Both events are connected because the GUI should show exactly what the controller works with. So a data transmit is always related to a controller update.
+However, this value can not be chosen arbitrarily, due to serial baud rate limitations.
+According to this table (https://lucidar.me/en/serialib/most-used-baud-rates-table/) using a baud rate of 115200 serial data can be transmitted at a real byte rate of 86.806 µs per byte.
+Depending on the size of the outgoing message and the value of UPDATE_INTERVAL_MS, this could lead to asyncronity and the GUI will most likely not be able to interprete the data.
+The minimum update interval to not cause the serial buffer to accumulate data due to baud rate limitations can be expressed as message_size_bytes * real_byte_rate 
+which for example results in 177,78 ms for a buffer size of 2048 bytes and a baud rate of 115200 bauds. So the update interval must be higher than that.
+*/
+#define UPDATE_INTERVAL_MS 200
 
 Communication::ReceiveInterface rx_data;
 Communication::TransmitInterface tx_data;
@@ -12,7 +21,7 @@ Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 
 MinSegMPU mpu;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
   while (!Serial) {};
 
   // Sensor setup
@@ -30,13 +39,13 @@ void loop() {
   if (new_mpu_data && millis() > cycle_start_ms + UPDATE_INTERVAL_MS) {
     cycle_start_ms = millis();
 
-    // Assign values to tx interface
+    // Initialize tx interface with sensor readings
     tx_data.wheel.pos_rad = wheel_position_rad();
     tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
     tx_data.tilt.angle_deg.from_acc = mpu.tilt_angle_from_acc_deg();
-    tx_data.tilt.angle_deg.from_pitch = mpu.tilt_angle_from_pitch_deg();
+    tx_data.tilt.angle_deg.from_pitch = mpu.tilt_angle_from_euler_deg();
     tx_data.tilt.angle_deriv_deg_s.from_acc = mpu.tilt_angle_from_acc_deg.derivative();
-    tx_data.tilt.angle_deriv_deg_s.from_pitch = mpu.tilt_angle_from_pitch_deg.derivative();
+    tx_data.tilt.angle_deriv_deg_s.from_pitch = mpu.tilt_angle_from_euler_deg.derivative();
     tx_data.tilt.vel_deg_s = mpu.tilt_vel_deg_s();
 
     // Reference controller state
@@ -54,10 +63,12 @@ void loop() {
     message.clear();
     Sensor::cycle_num++;
   }
+
+
 }
 
 void serialEvent() {
-  char buffer[1024]{ 0 };
+  char buffer[Communication::RX_SERIAL_BUFFER_SIZE]{ 0 };
   union {
     uint16_t integer = 0;
     byte arr[2];

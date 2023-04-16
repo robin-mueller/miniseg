@@ -18,8 +18,8 @@ bool Communication::transmit(TransmitInterface &tx_data) {
     success = false;
   };
 
-  // Send 4096 bytes at maximum including 3 bytes header with start char (1 byte) and message length information (2 bytes unencoded)
-  char msg_buffer[4093];
+  // Send a maximum of TX_SERIAL_BUFFER_SIZE bytes including 3 bytes header with start char (1 byte) and message length information (2 bytes unencoded)
+  char msg_buffer[TX_SERIAL_BUFFER_SIZE - 3];
   serializeJson(tx_doc, msg_buffer);
   size_t msg_len = strlen(msg_buffer);
   Serial.write(PACKET_START_TOKEN);

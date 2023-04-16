@@ -1,7 +1,7 @@
 #include "mpu.hpp"
 
-float get_tilt_angle_from_pitch(MPU9250 *mpu) {
-  return mpu->getPitch();
+float get_tilt_angle_from_euler(MPU9250 *mpu) {
+  return mpu->getEulerX();
 }
 
 float get_tilt_angle_from_acc(MPU9250 *mpu) {
@@ -20,7 +20,7 @@ double MPUMeasurement::get_value() {
 }
 
 MinSegMPU::MinSegMPU()
-  : MPU9250(), tilt_angle_from_pitch_deg{ this, &get_tilt_angle_from_pitch }, tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc }, tilt_vel_deg_s{ this, &get_tilt_vel } {}
+  : MPU9250(), tilt_angle_from_euler_deg{ this, &get_tilt_angle_from_euler }, tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc }, tilt_vel_deg_s{ this, &get_tilt_vel } {}
 
 void MinSegMPU::setup() {
   Wire.begin();

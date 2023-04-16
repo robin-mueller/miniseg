@@ -5,7 +5,7 @@ uint32_t Sensor::cycle_num = 0;
 
 // Sensor abstract class.
 // Parameter 'freq_hz' defines the update frequency. If set to 0 updates every call.
-Sensor::Sensor(double transformation, uint32_t freq_hz)
+Sensor::Sensor(const double transformation, uint32_t freq_hz)
   : transformation(transformation), freq_hz(freq_hz) {}
 
 double Sensor::operator()() {
@@ -21,5 +21,11 @@ double Sensor::operator()() {
 };
 
 double Sensor::derivative() {
-  return (operator()() - prev_value) / (value_ts_ms - prev_value_ts_ms) * 1e3;
+  return (operator()() - prev_value) / (value_ts_ms - prev_value_ts_ms) * 1e3;  // Backwards euler
+}
+
+double Sensor::integral() {
+  double old_val = value;
+  if (operator()() != old_val) integrator += operator()() * (value_ts_ms - prev_value_ts_ms) * 1e-3;  // Backwards euler
+  return integrator;
 }

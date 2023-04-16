@@ -1,3 +1,4 @@
+#include <stdint.h>
 #ifndef COMMUNICATION_HPP
 #define COMMUNICATION_HPP
 
@@ -7,6 +8,8 @@
 namespace Communication {
 
 const char PACKET_START_TOKEN{ '$' };
+const uint16_t RX_SERIAL_BUFFER_SIZE = 1024;
+const uint16_t TX_SERIAL_BUFFER_SIZE = 2048;
 
 const DeserializationError read(const char *msg, ReceiveInterface &rx_interface);
 bool transmit(TransmitInterface &tx_interface);

@@ -16,7 +16,7 @@ public:
 
 class MinSegMPU : public MPU9250 {
 public:
-  MPUMeasurement tilt_angle_from_pitch_deg;
+  MPUMeasurement tilt_angle_from_euler_deg;
   MPUMeasurement tilt_angle_from_acc_deg;
   MPUMeasurement tilt_vel_deg_s;
 
