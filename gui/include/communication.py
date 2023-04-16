@@ -119,7 +119,7 @@ class BTDevice:
     class InvalidDataError(Exception):
         pass
 
-    MSG_START_TOKEN = b'\n'
+    MSG_START_TOKEN = b'$'
     MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
     MSG_SIZE_HINT_LEN = 2
     MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
@@ -170,7 +170,7 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 msg_bytes = json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
-                msg_bytes = b'\n' + len(msg_bytes).to_bytes(2, 'little') + msg_bytes
+                msg_bytes = self.MSG_START_TOKEN + len(msg_bytes).to_bytes(2, 'little') + msg_bytes
                 try:
                     self._socket.sendall(msg_bytes)
                 except TimeoutError as e:
@@ -192,7 +192,7 @@ class BTDevice:
                         if b == b'':  # If socket was closed from other side
                             return b''
                         buffer.extend(b)
-                        msg_start = buffer.find(b'\n')
+                        msg_start = buffer.find(self.MSG_START_TOKEN)
                         if msg_start != -1:
                             break
                     buffer = buffer[msg_start:]
