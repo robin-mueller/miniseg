@@ -1,4 +1,3 @@
-#include <stdint.h>
 #ifndef SENSOR_HPP
 #define SENSOR_HPP
 

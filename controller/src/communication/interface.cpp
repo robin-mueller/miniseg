@@ -3,20 +3,20 @@
 #include "interface.hpp"
 
 void Communication::ReceiveInterface::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
-this->control_state = doc["control_state"];
+  this->control_state = doc["control_state"];
 }
 
 void Communication::TransmitInterface::to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc) {
-doc["msg"] = this->msg;
-JsonObject wheel = doc.createNestedObject("wheel");
-wheel["pos_rad"] = this->wheel.pos_rad;
-wheel["pos_deriv_rad_s"] = this->wheel.pos_deriv_rad_s;
-JsonObject tilt = doc.createNestedObject("tilt");
-JsonObject angle_deg = tilt.createNestedObject("angle_deg");
-angle_deg["from_pitch"] = this->tilt.angle_deg.from_pitch;
-angle_deg["from_acc"] = this->tilt.angle_deg.from_acc;
-JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
-angle_deriv_deg_s["from_pitch"] = this->tilt.angle_deriv_deg_s.from_pitch;
-angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
-tilt["vel_deg_s"] = this->tilt.vel_deg_s;
+  doc["msg"] = this->msg;
+  JsonObject wheel = doc.createNestedObject("wheel");
+  wheel["pos_rad"] = this->wheel.pos_rad;
+  wheel["pos_deriv_rad_s"] = this->wheel.pos_deriv_rad_s;
+  JsonObject tilt = doc.createNestedObject("tilt");
+  JsonObject angle_deg = tilt.createNestedObject("angle_deg");
+  angle_deg["from_pitch"] = this->tilt.angle_deg.from_pitch;
+  angle_deg["from_acc"] = this->tilt.angle_deg.from_acc;
+  JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
+  angle_deriv_deg_s["from_pitch"] = this->tilt.angle_deriv_deg_s.from_pitch;
+  angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
+  tilt["vel_deg_s"] = this->tilt.vel_deg_s;
 }

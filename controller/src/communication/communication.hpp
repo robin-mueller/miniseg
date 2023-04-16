@@ -6,6 +6,8 @@
 
 namespace Communication {
 
+const char PACKET_START_TOKEN{ '$' };
+
 const DeserializationError read(const char *msg, ReceiveInterface &rx_interface);
 bool transmit(TransmitInterface &tx_interface);
 
@@ -14,9 +16,13 @@ class MessageHandler {
   size_t buf_size;
 
 public:
-  MessageHandler(char *message_buffer);
+  template<size_t N>
+  MessageHandler(char (&message_buffer)[N])
+    : buf(message_buffer), buf_size(N) {
+    clear();
+  }
 
-  bool append(const char *msg, bool new_line = true);
+  bool append(const char *msg);
   void clear();
 };
 

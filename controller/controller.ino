@@ -3,22 +3,20 @@
 #include "src/encoder.hpp"
 #include "src/mpu.hpp"
 
-#define UPDATE_INTERVAL_MS 100
+#define UPDATE_INTERVAL_MS 500
 
 Communication::ReceiveInterface rx_data;
 Communication::TransmitInterface tx_data;
-Communication::MessageHandler message(tx_data.msg);
-Encoder wheel_position_rad(ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360));
+Communication::MessageHandler message{ tx_data.msg };
+Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360) };
 MinSegMPU mpu;
 
 void setup() {
   Serial.begin(9600);
   while (!Serial) {};
 
-  // MPU Setup
-  MinSegMPU();
-  
-  // Encoder setup
+  // Sensor setup
+  mpu.setup();
   wheel_position_rad.setup();
 
   // Initial values of RX Interface
@@ -48,11 +46,11 @@ void loop() {
 
 
     if (rx_data.control_state) {
-      
+
     }
 
     // Finish loop
-    // Communication::transmit(tx_data);
+    Communication::transmit(tx_data);
     message.clear();
     Sensor::cycle_num++;
   }
@@ -67,13 +65,13 @@ void serialEvent() {
 
   // When data arrives this function blocks the execution on the microcontroller until the entire message was received or until timeout.
   Serial.setTimeout(100);
-  if (Serial.find('\n')) {
+  if (Serial.find(Communication::PACKET_START_TOKEN)) {
     // When message start was found, read message size information from first two bytes and then read message
     Serial.readBytes(msg_len.arr, 2);
     Serial.readBytes(buffer, msg_len.integer);
     const DeserializationError err = Communication::read(buffer, rx_data);
     if (err) {
-      message.append("Deserialization ERROR: Failed with code: ", false);
+      message.append("Deserialization ERROR: Failed with code: ");
       message.append(err.c_str());
       return;
     }

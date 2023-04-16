@@ -11,30 +11,30 @@
 namespace Communication {
 
 struct ReceiveInterface {
-bool control_state;
+  bool control_state;
 
-void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
+  void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
 };
 
 struct TransmitInterface {
-char msg[256];
-struct {
-double pos_rad;
-double pos_deriv_rad_s;
-} wheel;
-struct {
-struct {
-double from_pitch;
-double from_acc;
-} angle_deg;
-struct {
-double from_pitch;
-double from_acc;
-} angle_deriv_deg_s;
-double vel_deg_s;
-} tilt;
+  char msg[256];
+  struct {
+    double pos_rad;
+    double pos_deriv_rad_s;
+  } wheel;
+  struct {
+    struct {
+      double from_pitch;
+      double from_acc;
+    } angle_deg;
+    struct {
+      double from_pitch;
+      double from_acc;
+    } angle_deriv_deg_s;
+    double vel_deg_s;
+  } tilt;
 
-void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc);
+  void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc);
 };
 }
 

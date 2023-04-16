@@ -21,8 +21,8 @@ bool Communication::transmit(TransmitInterface &tx_data) {
   // Send 4096 bytes at maximum including 3 bytes header with start char (1 byte) and message length information (2 bytes unencoded)
   char msg_buffer[4093];
   serializeJson(tx_doc, msg_buffer);
-  uint16_t msg_len = strlen(msg_buffer);
-  Serial.write('\n');
+  size_t msg_len = strlen(msg_buffer);
+  Serial.write(PACKET_START_TOKEN);
   Serial.write(lowByte(msg_len));
   Serial.write(highByte(msg_len));
   Serial.write(msg_buffer, msg_len);
@@ -30,16 +30,9 @@ bool Communication::transmit(TransmitInterface &tx_data) {
   return success;
 }
 
-Communication::MessageHandler::MessageHandler(char *message_buffer) : buf(message_buffer), buf_size(sizeof(buf)) {
-  clear();
-}
-
-bool Communication::MessageHandler::append(const char *msg, bool new_line) {
+bool Communication::MessageHandler::append(const char *msg) {
   size_t existing_len = strlen(buf);
   size_t append_len = strlcpy(&buf[existing_len], msg, buf_size - existing_len);
-  if (new_line) {
-    return append("\n", false);
-  }
   return append_len < buf_size - existing_len;
 }
 

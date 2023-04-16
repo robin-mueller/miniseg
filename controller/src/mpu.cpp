@@ -20,14 +20,17 @@ double MPUMeasurement::get_value() {
 }
 
 MinSegMPU::MinSegMPU()
-  : MPU9250(), tilt_angle_from_pitch_deg{ this, &get_tilt_angle_from_pitch }, tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc }, tilt_vel_deg_s{ this, &get_tilt_vel } {
+  : MPU9250(), tilt_angle_from_pitch_deg{ this, &get_tilt_angle_from_pitch }, tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc }, tilt_vel_deg_s{ this, &get_tilt_vel } {}
+
+void MinSegMPU::setup() {
   Wire.begin();
+  
   MPU9250Setting mpu_setting;
   mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A16G;           // Accelerometer range in +/- g (gravitational force on earth)
   mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G2000DPS;         // Gyro range in +/- dps (degrees per second)
   mpu_setting.accel_dlpf_cfg = ACCEL_DLPF_CFG::DLPF_45HZ;  // Accelerometer digital low pass filter bandwith
   mpu_setting.gyro_dlpf_cfg = GYRO_DLPF_CFG::DLPF_41HZ;    // Gyro digital low pass filter bandwith
-  setup(0x68, mpu_setting);
+  MPU9250::setup(0x68, mpu_setting);
 
   // Filter for removing yaw angle drift using 9-DOF sensor fusion
   selectFilter(QuatFilterSel::NONE);

@@ -1,4 +1,3 @@
-#include <math.h>
 #ifndef MPU_HPP
 #define MPU_HPP
 
@@ -22,6 +21,8 @@ public:
   MPUMeasurement tilt_vel_deg_s;
 
   MinSegMPU();
+
+  void setup();
 };
 
 #endif
