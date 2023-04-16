@@ -49,14 +49,22 @@ class Interface(UserDict):
                 return obj.data
             return super().default(obj)
 
-    def __init__(self, interface_def: dict[str, str | dict]):
-        if not isinstance(interface_def, dict):
-            raise TypeError(f"Wrong type of interface_def: {type(interface_def)}. The interface has to be defined as a dict with string or dicts as values.")
+    def __init__(self, interface_definition: dict[str, str | dict], *add_members: tuple[str, type]):
+        if not isinstance(interface_definition, dict):
+            raise TypeError(f"Wrong type of interface_def: {type(interface_definition)}. The interface has to be defined as a dict with string or dicts as values.")
         super().__init__()
         self._access_lock = RLock()
-        self._interface_def = interface_def
+
+        # Translate interface def
+        self._interface_def: dict[str, type | dict] = {
+            name: self.VALID_TYPES.get(re.sub(r'\d+', '', val), self.UndefinedType) if isinstance(val, str) else val
+            for name, val in interface_definition.items()
+        }
+        # Add optional additional members
+        self._interface_def.update({name: t for name, t in add_members})
+
         self.data = {}
-        for key, val in interface_def.items():
+        for key, val in interface_definition.items():
             if isinstance(val, str):
                 self.data[key] = None
             elif isinstance(val, dict):
@@ -93,13 +101,10 @@ class Interface(UserDict):
                         return
                     else:
                         raise self.SetItemNotAllowedError(key)
-                defined_type = self.VALID_TYPES.get(re.sub(r'\d+', '', self._interface_def[key]), self.UndefinedType)
                 try:
-                    converted_val = defined_type(value)
+                    converted_val = self._interface_def[key](value)
                 except ValueError:
-                    raise self.ConversionError(f"Could no convert value to defined type: "
-                                               f"Value type for key '{key}' was defined as '{self._interface_def[key]}' which corresponds to {defined_type} "
-                                               f"but provided was {type(value)} ({value=}).")
+                    raise self.ConversionError(f"Could no convert value {value=} of type {type(value)} for key '{key}' to {self._interface_def[key]}.")
                 else:
                     super().__setitem__(key, converted_val)
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
@@ -136,7 +141,7 @@ class BTDevice:
             interface_specifiers = json.load(interface_file)
             try:
                 self._tx_interface = Interface(interface_specifiers["TO_DEVICE"])
-                self._rx_interface = Interface(interface_specifiers["FROM_DEVICE"])
+                self._rx_interface = Interface(interface_specifiers["FROM_DEVICE"], ("msg", str))
             except (TypeError, KeyError):
                 raise self.InvalidDataError("Base key(s) not found! "
                                             "Specifiers for the data interface to and from the device have to be listed under the keys 'TO_DEVICE' and 'FROM_DEVICE' respectively.")
@@ -213,7 +218,6 @@ class BTDevice:
                     leftover = msg[msg_len:]
                     if len(leftover) != 0:
                         warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({leftover}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
-                    # print(msg_len, buffer[:self.MSG_HEADER_LEN])
                     return bytes(msg)
                 return b''
             else:

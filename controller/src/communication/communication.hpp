@@ -1,34 +1,30 @@
-#include <stdint.h>
 #ifndef COMMUNICATION_HPP
 #define COMMUNICATION_HPP
 
 #include <Arduino.h>
 #include "interface.hpp"
 
-namespace Communication {
+class Communication {
+public:
+  ReceiveInterface rx_data;
+  TransmitInterface tx_data;
 
-const char PACKET_START_TOKEN{ '$' };
-const uint16_t RX_SERIAL_BUFFER_SIZE = 1024;
-const uint16_t TX_SERIAL_BUFFER_SIZE = 2048;
+  static const size_t TX_MSG_BUFFER_SIZE = 256;
+  static const char PACKET_START_TOKEN{ '$' };
+  static const size_t RX_SERIAL_BUFFER_SIZE = 1024;
+  static const size_t TX_SERIAL_BUFFER_SIZE = 2048;
 
-const DeserializationError read(const char *msg, ReceiveInterface &rx_interface);
-bool transmit(TransmitInterface &tx_interface);
+private:
+  char TX_MSG_BUFFER[TX_MSG_BUFFER_SIZE]{ 0 };
 
-class MessageHandler {
-  char *buf;
-  size_t buf_size;
+  void write_packet(JsonDocument &tx_doc);
 
 public:
-  template<size_t N>
-  MessageHandler(char (&message_buffer)[N])
-    : buf(message_buffer), buf_size(N) {
-    clear();
-  }
-
-  bool append(const char *msg);
-  void clear();
+  bool receive();
+  bool transmit();
+  bool message_append(const __FlashStringHelper *msg);
+  bool message_transmit(const __FlashStringHelper *msg);
+  void message_clear();
 };
-
-}
 
 #endif

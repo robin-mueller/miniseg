@@ -1,6 +1,5 @@
 {
   "FROM_DEVICE": {
-    "msg": "char[256]",
     "wheel": {
       "pos_rad": "double",
       "pos_deriv_rad_s": "double"
@@ -18,6 +17,8 @@
     }
   },
   "TO_DEVICE": {
-    "control_state": "bool"
+    "calibrate": "bool",
+    "control_state": "bool",
+    "pos_setpoint": "double"
   }
 }
