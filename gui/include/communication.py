@@ -11,13 +11,9 @@ from threading import RLock
 from collections import UserDict
 
 
-class Interface(UserDict):
-    """
-    A thread safe dict-like object that acts like a runtime validated buffer for incoming and outgoing data.
-    """
-
+class InterfaceDefinition(UserDict):
     # Maps the types that are allowed to be specified in the interface json file to Python types
-    VALID_TYPES = {
+    TYPE_TRANSLATION = {
         "char[]": str,
         "bool": bool,
         "float": float,
@@ -25,10 +21,34 @@ class Interface(UserDict):
         "int": int
     }
 
-    class UndefinedType:
-        def __init__(self, *args, **kwargs):
-            raise ValueError
+    class MissingCorrespondingType(Exception):
+        pass
 
+    def __init__(self, interface_json: dict[str, str | dict], /, **kwargs):
+        if not isinstance(interface_json, dict):
+            raise TypeError(f"Wrong type of interface_json: {type(interface_json)}. "
+                            f"The interface must be defined as an arbitrarily nested dict with string values that specify the data type.")
+        super().__init__(interface_json, **kwargs)
+
+    def __setitem__(self, key, val):
+        if not isinstance(key, str):
+            raise TypeError(f"key must be a string but provided was {type(key)}.")
+        if isinstance(val, str):
+            if val not in self.TYPE_TRANSLATION:
+                raise self.MissingCorrespondingType(f"Type translation for '{val}' is missing.")
+            super().__setitem__(key, self.TYPE_TRANSLATION[re.sub(r'\d+', '', val)])
+        elif isinstance(val, dict):
+            super().__setitem__(key, InterfaceDefinition(val))
+        elif isinstance(val, type):
+            super().__setitem__(key, val)
+        else:
+            raise TypeError(f"val must be a type, string or dict but provided was {type(val)}.")
+
+
+class Interface(UserDict):
+    """
+    A thread safe dict-like object that acts like a runtime validated buffer for incoming and outgoing data.
+    """
     class ConversionError(Exception):
         pass
 
@@ -49,28 +69,21 @@ class Interface(UserDict):
                 return obj.data
             return super().default(obj)
 
-    def __init__(self, interface_definition: dict[str, str | dict], *add_members: tuple[str, type]):
-        if not isinstance(interface_definition, dict):
-            raise TypeError(f"Wrong type of interface_def: {type(interface_definition)}. The interface has to be defined as a dict with string or dicts as values.")
+    def __init__(self, interface_definition: InterfaceDefinition, *add_members: tuple[str, type]):
         super().__init__()
         self._access_lock = RLock()
+        self._interface_def = interface_definition
 
-        # Translate interface def
-        self._interface_def: dict[str, type | dict] = {
-            name: self.VALID_TYPES.get(re.sub(r'\d+', '', val), self.UndefinedType) if isinstance(val, str) else val
-            for name, val in interface_definition.items()
-        }
         # Add optional additional members
         self._interface_def.update({name: t for name, t in add_members})
 
-        self.data = {}
-        for key, val in interface_definition.items():
-            if isinstance(val, str):
-                self.data[key] = None
-            elif isinstance(val, dict):
+        for key, val in self._interface_def.items():
+            if type(val) is InterfaceDefinition:
                 self.data[key] = Interface(val)
+            elif isinstance(val, type):
+                self.data[key] = None
             else:
-                raise TypeError(f"Wrong value type for a key: {type(val)}! Only strings and dicts allowed.")
+                raise TypeError(f"Wrong value type: {type(val)}! Only InterfaceDefinition and types allowed.")
 
     @property
     def definition(self):
@@ -129,7 +142,7 @@ class BTDevice:
     MSG_SIZE_HINT_LEN = 2
     MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
 
-    def __init__(self, address: str, interface_json: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096):
+    def __init__(self, address: str, interface_json_path: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096):
         self._address = address
         self._conn_timeout = connect_timeout_sec
         self._rx_chunk_size = rx_chunk_size
@@ -137,14 +150,17 @@ class BTDevice:
         self._connected = False
         self._socket: BluetoothSocket | None = None
 
-        with interface_json.open() as interface_file:
-            interface_specifiers = json.load(interface_file)
+        with interface_json_path.open() as interface_file:
+            interface_json = json.load(interface_file)
             try:
-                self._tx_interface = Interface(interface_specifiers["TO_DEVICE"])
-                self._rx_interface = Interface(interface_specifiers["FROM_DEVICE"], ("msg", str))
+                to_device_def = InterfaceDefinition(interface_json["TO_DEVICE"])
+                from_device_def = InterfaceDefinition(interface_json["FROM_DEVICE"])
             except (TypeError, KeyError):
                 raise self.InvalidDataError("Base key(s) not found! "
                                             "Specifiers for the data interface to and from the device have to be listed under the keys 'TO_DEVICE' and 'FROM_DEVICE' respectively.")
+            else:
+                self._tx_interface = Interface(to_device_def)
+                self._rx_interface = Interface(from_device_def, ("msg", str))
 
     @property
     def tx_interface(self):
@@ -217,7 +233,7 @@ class BTDevice:
                         msg.extend(b)
                     leftover = msg[msg_len:]
                     if len(leftover) != 0:
-                        warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({leftover}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
+                        warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({bytes(leftover)}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
                     return bytes(msg)
                 return b''
             else:
@@ -225,11 +241,11 @@ class BTDevice:
 
     def deserialize(self, received: bytes):
         try:
-            json_msg = json.loads(received.decode())
+            data = json.loads(received.decode())
         except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
             raise self.InvalidDataError(f"Could not interprete received data: {received}") from None
         else:
-            return json_msg
+            self.rx_interface.update(data)
 
     @staticmethod
     def discover():

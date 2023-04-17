@@ -1,9 +1,9 @@
 from functools import partial
 from pathlib import Path
 from configuration import THEME
-from include.communication import BTDevice, Interface
+from include.communication import BTDevice, InterfaceDefinition
 from resources.main_window_ui import Ui_MainWindow
-from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, ColouredCurve
+from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary
 from include.concurrent import ConcurrentTask
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
@@ -51,13 +51,12 @@ class MiniSegGUI(QMainWindow):
         # noinspection PyPropertyAccess
         CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value))
 
-        def add_interface_curve_candidates(accessor: list[str], definition: dict[str, str | dict]):
+        def add_interface_curve_candidates(accessor: list[str], definition: InterfaceDefinition):
             for key, val in definition.items():
                 _accessor = accessor + [key]
-                if isinstance(val, str):
-                    if val in (type_string for type_string, p_type in Interface.VALID_TYPES.items() if p_type in [float, int, bool]):
-                        CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor))))
-                elif isinstance(val, dict):
+                if val in [float, int, bool]:
+                    CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor))))
+                elif isinstance(val, InterfaceDefinition):
                     add_interface_curve_candidates(_accessor, val)
 
         add_interface_curve_candidates([], self.bt_device.rx_interface.definition)
@@ -107,13 +106,13 @@ class MiniSegGUI(QMainWindow):
             return
 
         # Update RX interface
-        data = self.bt_device.deserialize(received)
-        self.bt_device.rx_interface.update(data)
+        self.bt_device.deserialize(received)
 
         # Write received message to terminal
         msg: str = self.bt_device.rx_interface["msg"]
         if msg:
             self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg}")
+            self.bt_device.rx_interface["msg"] = ""  # Clear message buffer
 
     def on_open_monitor(self):
         new_monitor = MonitoringWindow()
