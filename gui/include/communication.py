@@ -49,6 +49,14 @@ class Interface(UserDict):
     """
     A thread safe dict-like object that acts like a runtime validated buffer for incoming and outgoing data.
     """
+
+    # This specifies the cases upon setting a value where conversion from set_type to defined_type is explicitly allowed.
+    # A single or multiple types may be specified inside a list.
+    # Format {set_type: list[defined_type])
+    _CONVERSION_WHITELIST = {
+        int: [float]
+    }
+
     class ConversionError(Exception):
         pass
 
@@ -72,16 +80,16 @@ class Interface(UserDict):
     def __init__(self, interface_definition: InterfaceDefinition, *add_members: tuple[str, type]):
         super().__init__()
         self._access_lock = RLock()
-        self._interface_def = interface_definition
+        self._interface_def: UserDict[str, type | InterfaceDefinition] = interface_definition
 
         # Add optional additional members
         self._interface_def.update({name: t for name, t in add_members})
 
         for key, val in self._interface_def.items():
-            if type(val) is InterfaceDefinition:
+            if isinstance(val, InterfaceDefinition):
                 self.data[key] = Interface(val)
             elif isinstance(val, type):
-                self.data[key] = None
+                self.data[key] = val()
             else:
                 raise TypeError(f"Wrong value type: {type(val)}! Only InterfaceDefinition and types allowed.")
 
@@ -114,20 +122,27 @@ class Interface(UserDict):
                         return
                     else:
                         raise self.SetItemNotAllowedError(key)
+
+                defined_type = self._interface_def[key]
+                set_type = type(value)
+                if set_type != defined_type and defined_type not in self._CONVERSION_WHITELIST.get(set_type, []):
+                    raise self.ConversionError(f"Type of {value=} is {type(value)} but defined was {defined_type}. Interface values must be loyal to their types defined at initialization.")
                 try:
-                    converted_val = self._interface_def[key](value)
+                    converted_val = defined_type(value)
                 except ValueError:
-                    raise self.ConversionError(f"Could no convert value {value=} of type {type(value)} for key '{key}' to {self._interface_def[key]}.")
+                    raise self.ConversionError(f"Could no convert {value=} of type {type(value)} for key '{key}' to {self._interface_def[key]}.")
                 else:
                     super().__setitem__(key, converted_val)
+                    return
+
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
                 d = self.__getitem__(key[:-1])
                 if isinstance(d, Interface):
                     d[key[-1]] = value
-                else:
-                    raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}!")
-            else:
-                raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
+                    return
+                raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}.")
+
+            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
 
 class BTDevice:
@@ -142,10 +157,12 @@ class BTDevice:
     MSG_SIZE_HINT_LEN = 2
     MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
 
-    def __init__(self, address: str, interface_json_path: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096):
+    def __init__(self, address: str, interface_json_path: Path, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096, allowed_rx_bufferbloat: int = 1024):
         self._address = address
         self._conn_timeout = connect_timeout_sec
         self._rx_chunk_size = rx_chunk_size
+        self._allowed_rx_bufferbloat = allowed_rx_bufferbloat
+        self._rx_buffer = bytearray()
         self._connect_lock = RLock()  # Needs to be reentrant because of the except statement in self.publish()
         self._connected = False
         self._socket: BluetoothSocket | None = None
@@ -185,9 +202,11 @@ class BTDevice:
                 self._socket = None
                 self._connected = False
 
-    def send(self, write: dict = None):
+    def send(self, write: dict = None, /, **kwargs):
         if write:
             self.tx_interface.update(write)
+        if kwargs:
+            self.tx_interface.update(kwargs)
         with self._connect_lock:
             if self._connected:
                 msg_bytes = json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
@@ -204,7 +223,6 @@ class BTDevice:
         with self._connect_lock:
             if self._connected:
                 if select.select([self._socket], [], [], 0)[0]:  # Check for available data
-                    buffer = bytearray()
                     self._socket.settimeout(1)
 
                     # Receive header that contains start bit and message length
@@ -212,28 +230,32 @@ class BTDevice:
                         b = self._socket.recv(self._rx_chunk_size)
                         if b == b'':  # If socket was closed from other side
                             return b''
-                        buffer.extend(b)
-                        msg_start = buffer.find(self.MSG_START_TOKEN)
+                        self._rx_buffer.extend(b)
+                        msg_start = self._rx_buffer.find(self.MSG_START_TOKEN)
                         if msg_start != -1:
                             break
-                    buffer = buffer[msg_start:]
-                    while len(buffer) < self.MSG_HEADER_LEN:
+                    self._rx_buffer = self._rx_buffer[msg_start:]  # Remove msg start token from buffer
+
+                    while len(self._rx_buffer) < self.MSG_HEADER_LEN:
                         b = self._socket.recv(self._rx_chunk_size)
                         if b == b'':  # If socket was closed from other side
                             return b''
-                        buffer.extend(b)
-                    msg_len = int.from_bytes(buffer[self.MSG_START_TOKEN_LEN:][:self.MSG_SIZE_HINT_LEN], 'little')
-                    msg = buffer[self.MSG_HEADER_LEN:]
+                        self._rx_buffer.extend(b)
+                    msg_len = int.from_bytes(self._rx_buffer[self.MSG_START_TOKEN_LEN:self.MSG_START_TOKEN_LEN + self.MSG_SIZE_HINT_LEN], 'little')
+                    self._rx_buffer = self._rx_buffer[self.MSG_HEADER_LEN:]  # Remove msg header from buffer
 
                     # Receive actual message
-                    while len(msg) < msg_len:
+                    while len(self._rx_buffer) < msg_len:
                         b = self._socket.recv(self._rx_chunk_size)
                         if b == b'':  # If socket was closed from other side
                             return b''
-                        msg.extend(b)
-                    leftover = msg[msg_len:]
-                    if len(leftover) != 0:
-                        warnings.warn(f"Can't keep up with arriving data. {len(leftover)} bytes ({bytes(leftover)}) arrived earlier than they could be processed and are being dumped!", RuntimeWarning)
+                        self._rx_buffer.extend(b)
+                    msg = self._rx_buffer[:msg_len]
+                    self._rx_buffer = self._rx_buffer[msg_len:]  # Remove received message from buffer
+
+                    if len(self._rx_buffer) > self._allowed_rx_bufferbloat:
+                        warnings.warn(f"Bufferbloat is very large which means that incoming messages aren't processed fast enough. "
+                                      f"After message receive {len(self._rx_buffer)} bytes were left over in the buffer.", RuntimeWarning)
                     return bytes(msg)
                 return b''
             else:

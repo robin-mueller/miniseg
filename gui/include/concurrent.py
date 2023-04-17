@@ -1,8 +1,14 @@
+from abc import abstractmethod, ABCMeta
+from types import NoneType
 from typing import Callable
 from PySide6.QtCore import QTimer, QObject, Signal, QThread
 
 
 class _ConcurrentWorker(QObject):
+    """
+    This class provides the structure for concurrent workers but only subclasses allowed.
+    They have to be defined manually because each concurrent worker needs its own signals. They would otherwise be shared.
+    """
     success = Signal(object)
     failed = Signal(Exception)
     finished = Signal()
@@ -10,6 +16,15 @@ class _ConcurrentWorker(QObject):
     def __init__(self, do_work: Callable[[], object]):
         super().__init__()
         self._do_work = do_work
+
+    def __new__(cls, *args, **kwargs):
+        if cls is _ConcurrentWorker:
+            raise TypeError(f"Only children of '{cls.__name__}' may be instantiated!")
+        return super().__new__(cls, *args, **kwargs)
+
+    @property
+    def work_handle(self):
+        return self._do_work
 
     def run(self):
         try:
@@ -22,6 +37,18 @@ class _ConcurrentWorker(QObject):
             self.finished.emit()
 
 
+class BTConnectWorker(_ConcurrentWorker):
+    success = Signal(NoneType)
+    failed = Signal(Exception)
+    finished = Signal()
+
+
+class BTReceiveWorker(_ConcurrentWorker):
+    success = Signal(bytes)
+    failed = Signal(Exception)
+    finished = Signal()
+
+
 class ConcurrentTask:
     """
     A persistent handle (meaning the object doesn't have to be reinstantiated every time the task is supposed to start again)
@@ -32,17 +59,16 @@ class ConcurrentTask:
         def __init__(self, c: Callable, exception: Exception):
             super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
 
-    def __init__(self, do_work: Callable[[], any], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
+    def __init__(self, worker: _ConcurrentWorker, *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
 
         def create_worker():
-            worker = _ConcurrentWorker(do_work)
             if on_success:
                 worker.success.connect(on_success)
             if on_failed:
                 worker.failed.connect(on_failed)
             else:
                 def raise_ex(exception: Exception):
-                    raise self.WorkFailedError(do_work, exception)
+                    raise self.WorkFailedError(worker.work_handle, exception)
                 worker.failed.connect(raise_ex)
             return worker
 
