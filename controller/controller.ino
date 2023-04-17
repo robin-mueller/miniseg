@@ -12,7 +12,7 @@ The minimum update interval to not cause the serial buffer to accumulate data du
 which for example results in 177,78 ms for a buffer size of 2048 bytes and a baud rate of 115200 bauds. So the update interval must be slower than that.
 */
 #define CONTROLLER_UPDATE_INTERVAL_MS 10
-#define SERIAL_TRANSMIT_INTERVAL_MS 200
+#define SERIAL_TRANSMIT_INTERVAL_MS 100
 
 Communication com;
 Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360) };
@@ -63,9 +63,9 @@ void loop() {
     com.tx_data.wheel.pos_rad = wheel_position_rad();
     com.tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
     com.tx_data.tilt.angle_deg.from_acc = mpu.tilt_angle_from_acc_deg();
-    com.tx_data.tilt.angle_deg.from_pitch = mpu.tilt_angle_from_euler_deg();
+    com.tx_data.tilt.angle_deg.from_euler = mpu.tilt_angle_from_euler_deg();
     com.tx_data.tilt.angle_deriv_deg_s.from_acc = mpu.tilt_angle_from_acc_deg.derivative();
-    com.tx_data.tilt.angle_deriv_deg_s.from_pitch = mpu.tilt_angle_from_euler_deg.derivative();
+    com.tx_data.tilt.angle_deriv_deg_s.from_euler = mpu.tilt_angle_from_euler_deg.derivative();
     com.tx_data.tilt.vel_deg_s = mpu.tilt_vel_deg_s();
 
     // Reference controller state

@@ -14,10 +14,10 @@ wheel["pos_rad"] = this->wheel.pos_rad;
 wheel["pos_deriv_rad_s"] = this->wheel.pos_deriv_rad_s;
 JsonObject tilt = doc.createNestedObject("tilt");
 JsonObject angle_deg = tilt.createNestedObject("angle_deg");
-angle_deg["from_pitch"] = this->tilt.angle_deg.from_pitch;
+angle_deg["from_euler"] = this->tilt.angle_deg.from_euler;
 angle_deg["from_acc"] = this->tilt.angle_deg.from_acc;
 JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
-angle_deriv_deg_s["from_pitch"] = this->tilt.angle_deriv_deg_s.from_pitch;
+angle_deriv_deg_s["from_euler"] = this->tilt.angle_deriv_deg_s.from_euler;
 angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
 tilt["vel_deg_s"] = this->tilt.vel_deg_s;
 }

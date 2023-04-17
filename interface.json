@@ -6,11 +6,11 @@
     },
     "tilt": {
       "angle_deg": {
-        "from_pitch": "double",
+        "from_euler": "double",
         "from_acc": "double"
       },
       "angle_deriv_deg_s": {
-        "from_pitch": "double",
+        "from_euler": "double",
         "from_acc": "double"
       },
       "vel_deg_s": "double"

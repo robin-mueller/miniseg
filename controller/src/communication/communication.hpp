@@ -11,8 +11,8 @@ public:
 
   static const size_t TX_MSG_BUFFER_SIZE = 256;
   static const char PACKET_START_TOKEN{ '$' };
-  static const size_t RX_SERIAL_BUFFER_SIZE = 1024;
-  static const size_t TX_SERIAL_BUFFER_SIZE = 2048;
+  static const size_t RX_SERIAL_BUFFER_SIZE = 512;
+  static const size_t TX_SERIAL_BUFFER_SIZE = 1024;
 
 private:
   char TX_MSG_BUFFER[TX_MSG_BUFFER_SIZE]{ 0 };

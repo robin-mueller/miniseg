@@ -23,11 +23,11 @@ double pos_deriv_rad_s;
 } wheel;
 struct {
 struct {
-double from_pitch;
+double from_euler;
 double from_acc;
 } angle_deg;
 struct {
-double from_pitch;
+double from_euler;
 double from_acc;
 } angle_deriv_deg_s;
 double vel_deg_s;
