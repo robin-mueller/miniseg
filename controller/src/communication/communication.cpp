@@ -33,7 +33,7 @@ bool Communication::receive() {
 
 // Send a maximum of TX_SERIAL_BUFFER_SIZE bytes plus 3 bytes header (start char (1 byte) + message length information (2 bytes))
 void Communication::write_packet(JsonDocument &tx_doc) {
-  char buffer[TX_SERIAL_BUFFER_SIZE];
+  char buffer[TX_SERIAL_BUFFER_SIZE]{ 0 };
   size_t msg_len = serializeJson(tx_doc, buffer);
 
   // Write to serial. Be aware that this will block if serial buffer is full.

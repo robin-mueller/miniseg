@@ -28,6 +28,7 @@ void setup() {
 
   // Initial values of RX Interface
   com.rx_data.control_state = false;
+  com.rx_data.calibrate = false;
 }
 
 void loop() {
@@ -90,10 +91,8 @@ void loop() {
 
 void serialEvent() {
   if (com.receive()) {
-    com.message_clear();
     com.message_transmit(F("Packet received!"));
   } else {
-    com.message_clear();
     com.message_transmit(F("Packet receive ERROR!"));
   }
 }
