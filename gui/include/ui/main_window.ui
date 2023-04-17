@@ -108,7 +108,7 @@
      <x>0</x>
      <y>0</y>
      <width>1000</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="defaultUp">
@@ -133,6 +133,7 @@
     <addaction name="actionConnect"/>
     <addaction name="actionDisconnect"/>
     <addaction name="separator"/>
+    <addaction name="actionStartCalibration"/>
    </widget>
    <addaction name="menuSetup"/>
    <addaction name="menuMonitoring"/>
@@ -157,6 +158,11 @@
    </property>
    <property name="text">
     <string>Disconnect</string>
+   </property>
+  </action>
+  <action name="actionStartCalibration">
+   <property name="text">
+    <string>Start Calibration</string>
    </property>
   </action>
  </widget>

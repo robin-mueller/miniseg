@@ -1,6 +1,17 @@
 #include <Arduino.h>
 #include "communication.hpp"
 
+Communication::Communication() {
+  /*
+  Initial values of interface can be defined here.
+
+  By default the following inital values set:
+    bool -> false
+    int, float, double -> 0
+  */
+  message_clear();
+}
+
 bool Communication::receive() {
   if (!Serial.available()) return false;
   char buffer[RX_SERIAL_BUFFER_SIZE]{ 0 };
@@ -58,20 +69,20 @@ bool Communication::transmit() {
 }
 
 bool Communication::message_append(const __FlashStringHelper *msg) {
-  size_t existing_len = strlen(TX_MSG_BUFFER);
-  size_t append_len = strlcpy_P(&TX_MSG_BUFFER[existing_len], (const char *)msg, TX_MSG_BUFFER_SIZE - existing_len);
-  return append_len < TX_MSG_BUFFER_SIZE - existing_len;  // Return true if every char fitted into the buffer
+  size_t existing_len = strlen(TX_STATUS_MSG_BUFFER);
+  size_t append_len = strlcpy_P(&TX_STATUS_MSG_BUFFER[existing_len], (const char *)msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
+  return append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len;  // Return true if every char fitted into the buffer
 }
 
 bool Communication::message_transmit(const __FlashStringHelper *msg) {
   bool success = message_append(msg);
-  StaticJsonDocument<8 + TX_MSG_BUFFER_SIZE> tx_doc;
-  tx_doc["msg"] = TX_MSG_BUFFER;
+  StaticJsonDocument<8 + TX_STATUS_MSG_BUFFER_SIZE> tx_doc;
+  tx_doc["msg"] = TX_STATUS_MSG_BUFFER;
   write_packet(tx_doc);
   message_clear();
   return success;
 }
 
 void Communication::message_clear() {
-  strlcpy(TX_MSG_BUFFER, "", TX_MSG_BUFFER_SIZE);
+  strlcpy(TX_STATUS_MSG_BUFFER, "", TX_STATUS_MSG_BUFFER_SIZE);
 }

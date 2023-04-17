@@ -14,10 +14,11 @@
         "from_acc": "double"
       },
       "vel_deg_s": "double"
-    }
+    },
+    "calibrated": "bool"
   },
   "TO_DEVICE": {
-    "calibrate": "bool",
+    "calibration": "bool",
     "control_state": "bool",
     "pos_setpoint": "double"
   }

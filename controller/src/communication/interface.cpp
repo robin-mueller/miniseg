@@ -3,7 +3,7 @@
 #include "interface.hpp"
 
 void ReceiveInterface::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
-this->calibrate = doc["calibrate"];
+this->calibration = doc["calibration"];
 this->control_state = doc["control_state"];
 this->pos_setpoint = doc["pos_setpoint"];
 }
@@ -20,4 +20,5 @@ JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
 angle_deriv_deg_s["from_euler"] = this->tilt.angle_deriv_deg_s.from_euler;
 angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
 tilt["vel_deg_s"] = this->tilt.vel_deg_s;
+doc["calibrated"] = this->calibrated;
 }

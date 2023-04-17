@@ -25,35 +25,11 @@ void setup() {
   // Sensor setup
   mpu.setup();
   wheel_position_rad.setup();
-
-  // Initial values of RX Interface
-  com.rx_data.control_state = false;
-  com.rx_data.calibrate = false;
 }
 
 void loop() {
   com.message_clear();
   bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible since it reads the MPU data from the FIFO buffer and stores it.
-
-  if (com.rx_data.calibrate) {
-    com.message_transmit(F("Accel Gyro calibration will start in 3sec."));
-    com.message_transmit(F("Please leave the device still on the flat plane."));
-    delay(3000);
-    com.message_transmit(F("Accel Gyro calibration start!"));
-    mpu.calibrateAccelGyro();
-    com.message_transmit(F("Accel Gyro calibration finished!"));
-
-    delay(1000);
-    
-    com.message_transmit(F("Mag calibration will start in 3sec."));
-    com.message_transmit(F("Please Wave device in a figure eight until done."));
-    delay(3000);
-    com.message_transmit(F("Mag calibration start!"));
-    mpu.calibrateMag();
-    com.message_transmit(F("Mag calibration finished!"));
-    com.message_transmit(F("-------------------------"));
-    com.message_transmit(F("    Calibration done!"));
-  }
 
   static uint32_t control_cycle_start_ms = 0;
   if (new_mpu_data && millis() > control_cycle_start_ms + CONTROLLER_UPDATE_INTERVAL_MS) {
@@ -82,11 +58,36 @@ void loop() {
     Sensor::cycle_num++;
   }
 
+  if (com.rx_data.calibration) calibrate_mpu();
+
   static uint32_t last_transmit_ms = 0;
   if (millis() > last_transmit_ms + SERIAL_TRANSMIT_INTERVAL_MS) {
     last_transmit_ms = millis();
     com.transmit();
   }
+}
+
+void calibrate_mpu() {
+  com.message_transmit(F("Accel Gyro calibration will start in 3sec."));
+  com.message_transmit(F("Please leave the device still on the flat plane."));
+  delay(3000);
+  com.message_transmit(F("Accel Gyro calibration start!"));
+  mpu.calibrateAccelGyro();
+  com.message_transmit(F("Accel Gyro calibration finished!"));
+
+  delay(1000);
+
+  com.message_transmit(F("Mag calibration will start in 3sec."));
+  com.message_transmit(F("Please Wave device in a figure eight until done."));
+  delay(3000);
+  com.message_transmit(F("Mag calibration start!"));
+  mpu.calibrateMag();
+  com.message_transmit(F("Mag calibration finished!"));
+  com.message_transmit(F("-------------------------"));
+  com.message_transmit(F("    Calibration done!"));
+
+  com.tx_data.calibrated = true;  // Tell gui that calibration procedure is finished
+  com.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
 }
 
 void serialEvent() {
