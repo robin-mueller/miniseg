@@ -44,18 +44,6 @@ bool Communication::receive() {
   return false;
 }
 
-// Send a maximum of TX_SERIAL_BUFFER_SIZE bytes plus 3 bytes header (start char (1 byte) + message length information (2 bytes))
-void Communication::write_packet(JsonDocument &tx_doc) {
-  char buffer[TX_SERIAL_BUFFER_SIZE]{ 0 };
-  size_t msg_len = serializeJson(tx_doc, buffer);
-
-  // Write to serial. Be aware that this will block if serial buffer is full.
-  Serial.write(PACKET_START_TOKEN);
-  Serial.write(lowByte(msg_len));
-  Serial.write(highByte(msg_len));
-  Serial.write(buffer, msg_len);
-}
-
 bool Communication::transmit() {
   StaticJsonDocument<JSON_DOC_SIZE_TX> tx_doc;
   tx_data.to_doc(tx_doc);
@@ -70,28 +58,36 @@ bool Communication::transmit() {
   }
 }
 
+// Send a maximum of TX_SERIAL_BUFFER_SIZE bytes plus 3 bytes header (start char (1 byte) + message length information (2 bytes))
+void Communication::write_packet(JsonDocument &tx_doc) {
+  char buffer[TX_SERIAL_BUFFER_SIZE]{ 0 };
+  size_t msg_len = serializeJson(tx_doc, buffer);
+
+  // Write to serial. Be aware that this will block if serial buffer is full.
+  Serial.write(PACKET_START_TOKEN);
+  Serial.write(lowByte(msg_len));
+  Serial.write(highByte(msg_len));
+  Serial.write(buffer, msg_len);
+}
+
 bool Communication::message_append(const __FlashStringHelper *msg) {
   size_t existing_len = strlen(TX_STATUS_MSG_BUFFER);
-  size_t append_len = strlcpy_P(&TX_STATUS_MSG_BUFFER[existing_len], (const char *)msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
+  size_t append_len = strlcpy_P(TX_STATUS_MSG_BUFFER + existing_len, (const char *)msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
   if (append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len) {
     return true;  // Return true if every char fitted into the buffer
   } else {
-    char trunc_indicator[] = " ...";
-    size_t trunc_indicator_size = sizeof(trunc_indicator);
-    strlcpy(&TX_STATUS_MSG_BUFFER[TX_STATUS_MSG_BUFFER_SIZE - trunc_indicator_size], trunc_indicator, trunc_indicator_size);  // If truncated append " ..." to indicate that
+    strlcpy(TX_STATUS_MSG_BUFFER + (TX_STATUS_MSG_BUFFER_SIZE - TX_STATUS_MSG_TRUNC_IND_SIZE), TX_STATUS_MSG_TRUNC_IND, TX_STATUS_MSG_TRUNC_IND_SIZE);  // If truncated append TX_STATUS_MSG_TRUNC_IND to indicate that
     return false;
   }
 }
 
 bool Communication::message_append(const char *msg) {
   size_t existing_len = strlen(TX_STATUS_MSG_BUFFER);
-  size_t append_len = strlcpy(&TX_STATUS_MSG_BUFFER[existing_len], msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
+  size_t append_len = strlcpy(TX_STATUS_MSG_BUFFER + existing_len, msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
   if (append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len) {
     return true;  // Return true if every char fitted into the buffer
   } else {
-    char trunc_indicator[] = " ...";
-    size_t trunc_indicator_size = sizeof(trunc_indicator);
-    strlcpy(&TX_STATUS_MSG_BUFFER[TX_STATUS_MSG_BUFFER_SIZE - trunc_indicator_size], trunc_indicator, trunc_indicator_size);  // If truncated append " ..." to indicate that
+    strlcpy(TX_STATUS_MSG_BUFFER + (TX_STATUS_MSG_BUFFER_SIZE - TX_STATUS_MSG_TRUNC_IND_SIZE), TX_STATUS_MSG_TRUNC_IND, TX_STATUS_MSG_TRUNC_IND_SIZE);  // If truncated append TX_STATUS_MSG_TRUNC_IND to indicate that
     return false;
   }
 }

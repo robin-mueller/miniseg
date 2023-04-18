@@ -20,7 +20,7 @@ MinSegMPU mpu;
 
 void setup() {
   Serial.begin(9600);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
-  Serial.setTimeout(100);
+  Serial.setTimeout(1000);
   while (!Serial) {};
 
   // Sensor setup
@@ -88,7 +88,7 @@ void calibrate_mpu() {
   delay(3000);
   com.message_transmit(F("    Calibration done!"));
 
-  com.tx_data.calibrated = true;  // Tell gui that calibration procedure is finished
+  com.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
   com.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
 }
 

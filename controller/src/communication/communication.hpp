@@ -10,9 +10,11 @@ public:
   TransmitInterface tx_data;
 
   static const size_t TX_STATUS_MSG_BUFFER_SIZE = 256;
-  static const char PACKET_START_TOKEN{ '$' };
+  const char PACKET_START_TOKEN{ '$' };
   static const size_t RX_SERIAL_BUFFER_SIZE = 512;
   static const size_t TX_SERIAL_BUFFER_SIZE = 1024;
+  static const size_t TX_STATUS_MSG_TRUNC_IND_SIZE = 5;
+  const char TX_STATUS_MSG_TRUNC_IND[TX_STATUS_MSG_TRUNC_IND_SIZE]{" ..."};
 
 private:
   char TX_STATUS_MSG_BUFFER[TX_STATUS_MSG_BUFFER_SIZE]{ 0 };
