@@ -13,18 +13,14 @@ class _ConcurrentWorker(QObject):
     failed = Signal(Exception)
     finished = Signal()
 
-    def __init__(self, do_work: Callable[[], object]):
+    def __init__(self, work_handle: Callable[[], object]):
         super().__init__()
-        self._do_work = do_work
+        self._do_work = work_handle
 
     def __new__(cls, *args, **kwargs):
         if cls is _ConcurrentWorker:
             raise TypeError(f"Only children of '{cls.__name__}' may be instantiated!")
         return super().__new__(cls, *args, **kwargs)
-
-    @property
-    def work_handle(self):
-        return self._do_work
 
     def run(self):
         try:
@@ -59,16 +55,17 @@ class ConcurrentTask:
         def __init__(self, c: Callable, exception: Exception):
             super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
 
-    def __init__(self, worker: _ConcurrentWorker, *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
+    def __init__(self, worker_class: type[_ConcurrentWorker], work_handle: Callable[[], object], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
 
         def create_worker():
+            worker = worker_class(work_handle)
             if on_success:
                 worker.success.connect(on_success)
             if on_failed:
                 worker.failed.connect(on_failed)
             else:
                 def raise_ex(exception: Exception):
-                    raise self.WorkFailedError(worker.work_handle, exception)
+                    raise self.WorkFailedError(work_handle, exception)
                 worker.failed.connect(raise_ex)
             return worker
 
@@ -85,14 +82,14 @@ class ConcurrentTask:
         self.thread: QThread | None = None
 
         # References that have to be kept alive for the task to work
-        self._worker = None
-        self._timer = None
+        self._worker: _ConcurrentWorker | None = None
+        self._timer: QTimer | None = None
 
     def start(self):
         """
         Creates the worker thread and starts the task execution.
         """
-        if not self.thread:
+        if self.thread is None:
             self._worker = self.create_worker()
             self._timer = self.create_timer()
             self.thread = QThread()

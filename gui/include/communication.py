@@ -213,8 +213,7 @@ class BTDevice:
                 msg_bytes = self.MSG_START_TOKEN + len(msg_bytes).to_bytes(2, 'little') + msg_bytes
                 try:
                     self._socket.sendall(msg_bytes)
-                except TimeoutError as e:
-                    self.disconnect()
+                except Exception as e:
                     raise e
             else:
                 raise self.NotConnectedError("Instance method connect() was never called!")

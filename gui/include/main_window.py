@@ -23,12 +23,14 @@ class MiniSegGUI(QMainWindow):
         self.monitors: list[MonitoringWindow] = []
         self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
         self.bt_connect_task = ConcurrentTask(
-            BTConnectWorker(self.bt_device.connect),
+            BTConnectWorker,
+            self.bt_device.connect,
             on_success=self.on_bt_connected,
             on_failed=self.on_bt_connection_failed
         )
         self.bt_receive_task = ConcurrentTask(
-            BTReceiveWorker(self.bt_device.receive),
+            BTReceiveWorker,
+            self.bt_device.receive,
             on_success=self.on_bt_received,
             repeat_ms=0
         )
