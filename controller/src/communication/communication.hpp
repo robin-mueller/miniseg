@@ -25,7 +25,9 @@ public:
   bool receive();
   bool transmit();
   bool message_append(const __FlashStringHelper *msg);
+  bool message_append(const char *msg);
   bool message_transmit(const __FlashStringHelper *msg);
+  bool message_transmit(const char *msg = "");
   void message_clear();
 };
 

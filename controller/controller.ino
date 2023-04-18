@@ -12,14 +12,15 @@ The minimum update interval to not cause the serial buffer to accumulate data du
 which for example results in 177,78 ms for a buffer size of 2048 bytes and a baud rate of 115200 bauds. So the update interval must be slower than that.
 */
 #define CONTROLLER_UPDATE_INTERVAL_MS 10
-#define SERIAL_TRANSMIT_INTERVAL_MS 100
+#define SERIAL_TRANSMIT_INTERVAL_MS 200
 
 Communication com;
 Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360) };
 MinSegMPU mpu;
 
 void setup() {
-  Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
+  Serial.begin(9600);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
+  Serial.setTimeout(100);
   while (!Serial) {};
 
   // Sensor setup
@@ -68,22 +69,23 @@ void loop() {
 }
 
 void calibrate_mpu() {
-  com.message_transmit(F("Accel Gyro calibration will start in 3sec."));
-  com.message_transmit(F("Please leave the device still on the flat plane."));
-  delay(3000);
-  com.message_transmit(F("Accel Gyro calibration start!"));
-  mpu.calibrateAccelGyro();
-  com.message_transmit(F("Accel Gyro calibration finished!"));
+  // com.message_transmit(F("Accel Gyro calibration will start in 3sec."));
+  // com.message_transmit(F("Please leave the device still on the flat plane."));
+  // delay(3000);
+  // com.message_transmit(F("Accel Gyro calibration start!"));
+  // mpu.calibrateAccelGyro();
+  // com.message_transmit(F("Accel Gyro calibration finished!"));
 
-  delay(1000);
+  // delay(1000);
 
-  com.message_transmit(F("Mag calibration will start in 3sec."));
-  com.message_transmit(F("Please Wave device in a figure eight until done."));
+  // com.message_transmit(F("Mag calibration will start in 3sec."));
+  // com.message_transmit(F("Please Wave device in a figure eight until done."));
+  // delay(3000);
+  // com.message_transmit(F("Mag calibration start!"));
+  // mpu.calibrateMag();
+  // com.message_transmit(F("Mag calibration finished!"));
+  // com.message_transmit(F("-------------------------"));
   delay(3000);
-  com.message_transmit(F("Mag calibration start!"));
-  mpu.calibrateMag();
-  com.message_transmit(F("Mag calibration finished!"));
-  com.message_transmit(F("-------------------------"));
   com.message_transmit(F("    Calibration done!"));
 
   com.tx_data.calibrated = true;  // Tell gui that calibration procedure is finished

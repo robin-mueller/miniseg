@@ -1,3 +1,4 @@
+#include "HardwareSerial.h"
 #include <Arduino.h>
 #include "communication.hpp"
 
@@ -21,7 +22,6 @@ bool Communication::receive() {
   } msg_len;
 
   // When data arrives this function blocks the execution on the microcontroller until the entire message was received or until timeout.
-  Serial.setTimeout(100);
   if (Serial.find(PACKET_START_TOKEN)) {
     // When packet start was found, read message length information from first two bytes
     Serial.readBytes(msg_len.arr, 2);
@@ -29,11 +29,13 @@ bool Communication::receive() {
 
     // Now read message
     StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
-    const DeserializationError err = deserializeJson(rx_doc, buffer);
+    const DeserializationError err = deserializeJson(rx_doc, (const char *)buffer);  // prevent zero-copy mode since buffer should not be changed inplace as it is needed for the debug message.
     if (err) {
       message_clear();
       message_append(F("Deserialization ERROR: Failed with code: "));
       message_transmit(err.f_str());
+      message_append(F("Tried to deserialize: "));
+      message_transmit(buffer);
       return false;
     }
     rx_data.from_doc(rx_doc);
@@ -71,10 +73,39 @@ bool Communication::transmit() {
 bool Communication::message_append(const __FlashStringHelper *msg) {
   size_t existing_len = strlen(TX_STATUS_MSG_BUFFER);
   size_t append_len = strlcpy_P(&TX_STATUS_MSG_BUFFER[existing_len], (const char *)msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
-  return append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len;  // Return true if every char fitted into the buffer
+  if (append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len) {
+    return true;  // Return true if every char fitted into the buffer
+  } else {
+    char trunc_indicator[] = " ...";
+    size_t trunc_indicator_size = sizeof(trunc_indicator);
+    strlcpy(&TX_STATUS_MSG_BUFFER[TX_STATUS_MSG_BUFFER_SIZE - trunc_indicator_size], trunc_indicator, trunc_indicator_size);  // If truncated append " ..." to indicate that
+    return false;
+  }
+}
+
+bool Communication::message_append(const char *msg) {
+  size_t existing_len = strlen(TX_STATUS_MSG_BUFFER);
+  size_t append_len = strlcpy(&TX_STATUS_MSG_BUFFER[existing_len], msg, TX_STATUS_MSG_BUFFER_SIZE - existing_len);
+  if (append_len < TX_STATUS_MSG_BUFFER_SIZE - existing_len) {
+    return true;  // Return true if every char fitted into the buffer
+  } else {
+    char trunc_indicator[] = " ...";
+    size_t trunc_indicator_size = sizeof(trunc_indicator);
+    strlcpy(&TX_STATUS_MSG_BUFFER[TX_STATUS_MSG_BUFFER_SIZE - trunc_indicator_size], trunc_indicator, trunc_indicator_size);  // If truncated append " ..." to indicate that
+    return false;
+  }
 }
 
 bool Communication::message_transmit(const __FlashStringHelper *msg) {
+  bool success = message_append(msg);
+  StaticJsonDocument<8 + TX_STATUS_MSG_BUFFER_SIZE> tx_doc;
+  tx_doc["msg"] = TX_STATUS_MSG_BUFFER;
+  write_packet(tx_doc);
+  message_clear();
+  return success;
+}
+
+bool Communication::message_transmit(const char *msg) {
   bool success = message_append(msg);
   StaticJsonDocument<8 + TX_STATUS_MSG_BUFFER_SIZE> tx_doc;
   tx_doc["msg"] = TX_STATUS_MSG_BUFFER;

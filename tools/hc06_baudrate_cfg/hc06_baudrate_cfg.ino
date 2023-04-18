@@ -21,10 +21,10 @@ enum class HC06_BAUD_RATE_CFG {
   B_115200
 };
 
-const unsigned long long CURRENT_BAUD_RATE = 115200;
-const HC06_BAUD_RATE_CFG baud_cfg = HC06_BAUD_RATE_CFG::B_115200;  // Choose the baud rate to change to
+const unsigned long long CURRENT_BAUD_RATE = 9600;
+const HC06_BAUD_RATE_CFG baud_cfg = HC06_BAUD_RATE_CFG::B_9600;  // Choose the baud rate to change to
 
-#define ONLY_TEST_COMMUNICATION  // Comment out if you want to set the baud rate
+// #define ONLY_TEST_COMMUNICATION  // Comment out if you want to set the baud rate
 
 bool test_communication() {
   Serial.print("AT");
