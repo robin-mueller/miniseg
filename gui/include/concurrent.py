@@ -1,4 +1,5 @@
-from abc import abstractmethod, ABCMeta
+import traceback
+
 from types import NoneType
 from typing import Callable
 from PySide6.QtCore import QTimer, QObject, Signal, QThread
@@ -53,7 +54,7 @@ class ConcurrentTask:
     """
     class WorkFailedError(Exception):
         def __init__(self, c: Callable, exception: Exception):
-            super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{exception.__class__.__name__}: {str(exception)}")
+            super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{''.join(traceback.format_exception(exception))}")
 
     def __init__(self, worker_class: type[_ConcurrentWorker], work_handle: Callable[[], object], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
 
