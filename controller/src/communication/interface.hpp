@@ -34,7 +34,7 @@ double vel_deg_s;
 } tilt;
 bool calibrated;
 
-void to_doc(StaticJsonDocument<JSON_DOC_SIZE_TX> &doc);
+StaticJsonDocument<JSON_DOC_SIZE_TX> to_doc();
 };
 
 #endif

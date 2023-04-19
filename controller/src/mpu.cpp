@@ -20,11 +20,14 @@ double MPUMeasurement::get_value() {
 }
 
 MinSegMPU::MinSegMPU()
-  : MPU9250(), tilt_angle_from_euler_deg{ this, &get_tilt_angle_from_euler }, tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc }, tilt_vel_deg_s{ this, &get_tilt_vel } {}
+  : MPU9250(),
+    tilt_angle_from_euler_deg{ this, &get_tilt_angle_from_euler },
+    tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc, 360 / (2 * PI) },
+    tilt_vel_deg_s{ this, &get_tilt_vel } {}
 
 void MinSegMPU::setup() {
   Wire.begin();
-  
+
   MPU9250Setting mpu_setting;
   mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A16G;           // Accelerometer range in +/- g (gravitational force on earth)
   mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G2000DPS;         // Gyro range in +/- dps (degrees per second)
