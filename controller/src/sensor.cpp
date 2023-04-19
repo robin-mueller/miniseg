@@ -1,7 +1,7 @@
 #include "Arduino.h"
 #include "sensor.hpp"
 
-uint32_t Sensor::cycle_num = 1;
+uint8_t Sensor::cycle_num = 1;
 
 // Sensor abstract class.
 // Parameter 'freq_hz' defines the update frequency. If set to 0 updates every call.
