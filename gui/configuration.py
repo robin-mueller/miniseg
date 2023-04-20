@@ -6,7 +6,7 @@ from PySide6.QtQml import qmlRegisterSingletonType
 class Parameters(QObject):
     @Property(int)
     def refresh_rate_hz(self):
-        return 10
+        return 20
 
     @Property(str)
     def default_recording_dir(self):
