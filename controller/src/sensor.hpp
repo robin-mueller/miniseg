@@ -19,7 +19,7 @@ protected:
   const uint32_t freq_hz;
 
 public:
-  static uint32_t cycle_num;
+  static uint8_t cycle_num;  // Overflow will happen but this doesn't concern since this number still offers the opportunity to compare cycles
 
   Sensor(const double transformation = 1, uint32_t freq_hz = 0);
 

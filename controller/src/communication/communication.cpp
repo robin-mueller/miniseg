@@ -1,4 +1,3 @@
-#include "HardwareSerial.h"
 #include <Arduino.h>
 #include "communication.hpp"
 
@@ -13,35 +12,59 @@ Communication::Communication() {
   message_clear();
 }
 
-// Receives data from the serial port and stores it in rx_data in a blocking manner.
-Communication::ReceiveError Communication::receive() {
-  if (!Serial.available()) return ReceiveError::NO_DATA_AVAILABLE;
-  union {
-    uint16_t integer = 0;
-    byte arr[2];
-  } msg_len;
-
-  // When data arrives this function blocks the execution on the microcontroller until the entire message was received or until timeout.
-  if (Serial.find(PACKET_START_TOKEN)) {
-    // When packet start was found, read message length information from first two bytes
-    Serial.readBytes(msg_len.arr, 2);
-    Serial.readBytes(RX_SERIAL_BUFFER, msg_len.integer);
-
-    // Now read message. Don't use zero-copy mode since buffer may not be changed inplace as it is needed for the debug message.
-    StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
-    const DeserializationError err = deserializeJson(rx_doc, (const char *)RX_SERIAL_BUFFER);
-    if (err) {
-      message_clear();
-      message_append(F("Deserialization Error: "));
-      message_queue_for_transmit(err.f_str());
-      message_append(F("Tried to deserialize: "));
-      message_queue_for_transmit(RX_SERIAL_BUFFER);
-      return ReceiveError::DESERIALIZATION_FAILED;
+// Receives data from the serial port and stores it in rx_data in an asynchronous manner.
+// So this method reads only the available chunk of data and then returns thus leaving the message completion up for the next cycles.
+Communication::ReceiveCode Communication::async_receive() {
+  if (Serial.available() == 63) message_queue_for_transmit(F("Warning: INSUFFICIENT_RECEIVE_RATE"));
+  while (Serial.available()) {
+    uint8_t b = Serial.read();  // Read one byte
+    if (b == PACKET_START_TOKEN) {
+      if (rx_state != 0) message_queue_for_transmit(F("Warning: PREVIOUS_PACKET_INCOMPLETE"));  // Previous message is corrupted since new start token is found but rx_state is not 0
+      rx_message_len = 0;
+      rx_message_pos = 0;
+      rx_state = 1;
+      continue;
     }
-    rx_data.from_doc(rx_doc);
-    return ReceiveError::RX_SUCCESS;
+
+    switch (rx_state) {
+      case 1:  // Read the message length byte 1 (most significant byte) -> Big endian byte format
+        rx_message_len = b << 8;
+        rx_state = 2;
+        break;
+      case 2:  // Read the message length byte 2 (least significant byte) -> Big endian byte format
+        rx_message_len |= b;
+        if (rx_message_len > RX_SERIAL_BUFFER_SIZE) {  // Check if the message length doesn't exceed the buffer size
+          rx_state = 0;
+          return ReceiveCode::MESSAGE_EXCEEDS_RX_BUFFER_SIZE;
+        } else {
+          rx_state = 3;
+        }
+        break;
+      case 3:  // Read the message bytes
+        RX_SERIAL_BUFFER[rx_message_pos++] = b;
+        if (rx_message_pos == rx_message_len) {  // Check if packet has been fully received
+          rx_state = 0;
+
+          // Now read message. Don't use zero-copy mode since buffer may not be changed inplace as it is needed for the debug message.
+          StaticJsonDocument<JSON_DOC_SIZE_RX> rx_doc;
+          const DeserializationError err = deserializeJson(rx_doc, (const char *)RX_SERIAL_BUFFER, rx_message_len);
+
+          if (err) {
+            message_append(F("Error: "));
+            message_append(err.f_str());
+            message_append(F(" when deserializing: "));
+            message_queue_for_transmit(RX_SERIAL_BUFFER);
+            return ReceiveCode::DESERIALIZATION_FAILED;
+          }
+
+          // Update rx_data when message is valid
+          rx_data.from_doc(rx_doc);
+          return ReceiveCode::PACKET_RECEIVED;
+        }
+        break;
+    }
   }
-  return ReceiveError::PACKET_START_NOT_FOUND;
+  return ReceiveCode::RX_IN_PROGRESS;
 }
 
 // Builds a packet from tx_doc with a 3 bytes header (start token (1 byte) + message length (2 bytes)) prepended in dest.
@@ -52,23 +75,27 @@ size_t Communication::build_packet(const JsonDocument &tx_doc, char *dest, size_
 
   size_t data_len = serializeJson(tx_doc, dest + 3, dest_size - 3);
   dest[0] = PACKET_START_TOKEN;
-  dest[1] = lowByte(data_len);
-  dest[2] = highByte(data_len);
-  return 3 + data_len;  // Json msg length + 3 bytes header
+
+  // Big endian byte format for length information
+  dest[1] = highByte(data_len);
+  dest[2] = lowByte(data_len);
+  return 3 + data_len;  // 3 bytes header + Json msg length
 }
 
 // Appends a data packet inferred from tx_doc to the transmit buffer.
-Communication::TransmitError Communication::queue_for_transmit(const JsonDocument &tx_doc) {
-  if (tx_doc.overflowed()) return TransmitError::TX_DOC_OVERFLOW;
+Communication::TransmitCode Communication::queue_for_transmit(const JsonDocument &tx_doc) {
+  if (tx_doc.overflowed()) return TransmitCode::TX_DOC_OVERFLOW;
 
+  // Create data packet. If there is no place for it in the buffer this function returns 0.
   size_t packet_size = build_packet(tx_doc, TX_SERIAL_BUFFER + tx_write_end, TX_SERIAL_BUFFER_SIZE - tx_write_end);
 
   // Append packet to tx serial buffer if it was successfully created
   if (packet_size) {
     tx_write_end += packet_size;
-    return TransmitError::TX_SUCCESS;
+    return TransmitCode::TX_SUCCESS;
   }
-  return TransmitError::TRANSMIT_BUFFER_FULL;  // This occurs if the transmit buffer cannot be depleted faster than new data is added
+  if (tx_write_start < tx_write_end) return TransmitCode::INSUFFICIENT_TRANSMIT_RATE;
+  return TransmitCode::PACKET_EXCEEDS_TX_BUFFER_SIZE;  // This occurs if the packet size is too big for the transmit buffer or if it cannot be depleted faster than new data is added
 }
 
 // Forwards bytes from the transmit buffer to the hardware buffer that sends out serial data.
@@ -112,20 +139,20 @@ bool Communication::message_append(const char *msg) {
   }
 }
 
-Communication::TransmitError Communication::message_queue_for_transmit(const __FlashStringHelper *msg) {
+Communication::TransmitCode Communication::message_queue_for_transmit(const __FlashStringHelper *msg) {
   message_append(msg);
   StaticJsonDocument<8 + TX_STATUS_MSG_BUFFER_SIZE> status_msg_doc;
   status_msg_doc[STATUS_MESSAGE_KEY] = TX_STATUS_MSG_BUFFER;
-  TransmitError tx_error = queue_for_transmit(status_msg_doc);
+  TransmitCode tx_error = queue_for_transmit(status_msg_doc);
   message_clear();
   return tx_error;
 }
 
-Communication::TransmitError Communication::message_queue_for_transmit(const char *msg) {
+Communication::TransmitCode Communication::message_queue_for_transmit(const char *msg) {
   message_append(msg);
   StaticJsonDocument<8 + TX_STATUS_MSG_BUFFER_SIZE> status_msg_doc;
   status_msg_doc[STATUS_MESSAGE_KEY] = TX_STATUS_MSG_BUFFER;
-  TransmitError tx_error = queue_for_transmit(status_msg_doc);
+  TransmitCode tx_error = queue_for_transmit(status_msg_doc);
   message_clear();
   return tx_error;
 }
@@ -139,7 +166,7 @@ void Communication::message_transmit_now(const __FlashStringHelper *msg) {
   const size_t buf_size = 3 + measureJson(status_msg_doc);  // Account for 3 bytes header + json message length
   char buffer[buf_size]{ 0 };
   size_t status_msg_size = build_packet(status_msg_doc, buffer, buf_size);
-  while (async_transmit() > 0) {};           // Wait for pending data to be transmitted to not corrupt the stream
+  while (async_transmit() > 0) {};        // Wait for pending data to be transmitted to not corrupt the stream
   Serial.write(buffer, status_msg_size);  // blocks until all bytes including the null terminal have been written
   message_clear();
 }

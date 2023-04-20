@@ -27,6 +27,7 @@ MinSegMPU::MinSegMPU()
 
 void MinSegMPU::setup() {
   Wire.begin();
+  Wire.setClock(400000);
 
   MPU9250Setting mpu_setting;
   mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A16G;           // Accelerometer range in +/- g (gravitational force on earth)

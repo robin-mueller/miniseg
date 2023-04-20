@@ -23,7 +23,6 @@ MinSegMPU mpu;
 
 void setup() {
   Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
-  Serial.setTimeout(1000);
   while (!Serial) {};
 
   // Sensor setup
@@ -32,8 +31,25 @@ void setup() {
 }
 
 void loop() {
-  com.message_clear();
-  bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible since it reads the MPU data from the FIFO buffer and stores it.
+  // Receive available data
+  if (Serial.available()) {
+    switch (com.async_receive()) {
+      case Communication::ReceiveCode::PACKET_RECEIVED:
+        com.message_queue_for_transmit(F("Packet received"));
+        break;
+      case Communication::ReceiveCode::RX_IN_PROGRESS:
+        com.message_queue_for_transmit(F("Receiving ..."));
+        break;
+      case Communication::ReceiveCode::MESSAGE_EXCEEDS_RX_BUFFER_SIZE:
+        com.message_queue_for_transmit(F("Receive Error: MESSAGE_EXCEEDS_RX_BUFFER_SIZE"));
+        break;
+      case Communication::ReceiveCode::DESERIALIZATION_FAILED:
+        com.message_queue_for_transmit(F("Receive Error: DESERIALIZATION_FAILED"));
+        break;
+    }
+  }
+
+  bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible to keep up with the configured sensor sample rate
 
   static uint32_t control_cycle_start_ms = 0;
   if (new_mpu_data && millis() > control_cycle_start_ms + CONTROLLER_UPDATE_INTERVAL_MS) {
@@ -69,15 +85,16 @@ void loop() {
   if (millis() > last_transmit_enqueuement_ms + TX_INTERFACE_ENQUEUEMENT_INTERVAL_MS) {
     last_transmit_enqueuement_ms = millis();
     switch (com.queue_for_transmit(com.tx_data.to_doc())) {
-      case Communication::TransmitError::TX_SUCCESS:
+      case Communication::TransmitCode::TX_SUCCESS:
         break;
-      case Communication::TransmitError::TX_DOC_OVERFLOW:
-        com.message_clear();
+      case Communication::TransmitCode::TX_DOC_OVERFLOW:
         com.message_queue_for_transmit(F("Transmit Error: TX_DOC_OVERFLOW"));
         break;
-      case Communication::TransmitError::TRANSMIT_BUFFER_FULL:
-        com.message_clear();
-        com.message_transmit_now(F("Transmit Error: TRANSMIT_BUFFER_FULL"));
+      case Communication::TransmitCode::INSUFFICIENT_TRANSMIT_RATE:
+        com.message_transmit_now(F("Transmit Error: INSUFFICIENT_TRANSMIT_RATE"));
+        break;
+      case Communication::TransmitCode::PACKET_EXCEEDS_TX_BUFFER_SIZE:
+        com.message_transmit_now(F("Transmit Error: PACKET_EXCEEDS_TX_BUFFER_SIZE"));
         break;
     }
   }
@@ -107,22 +124,4 @@ void calibrate_mpu() {
 
   com.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
   com.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
-}
-
-void serialEvent() {
-  switch (com.receive()) {
-    case Communication::ReceiveError::RX_SUCCESS:
-      com.message_queue_for_transmit(F("Packet received"));
-      break;
-    case Communication::ReceiveError::NO_DATA_AVAILABLE:
-      // Should not happen since receive is called inside serialEvent()
-      com.message_queue_for_transmit(F("Receive Error: NO_DATA_AVAILABLE"));
-      break;
-    case Communication::ReceiveError::DESERIALIZATION_FAILED:
-      com.message_queue_for_transmit(F("Receive Error: DESERIALIZATION_FAILED"));
-      break;
-    case Communication::ReceiveError::PACKET_START_NOT_FOUND:
-      com.message_queue_for_transmit(F("Receive Error: PACKET_START_NOT_FOUND"));
-      break;
-  }
 }
