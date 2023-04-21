@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include "interface.hpp"
 
+// Comment in/out to change receiving approach. If commented out, data is received by sequential polling inside loop().
+#define ENABLE_RX_INTERRUPT_POLLING
+
 class Communication {
 public:
   ReceiveInterface rx_data;
@@ -20,7 +23,7 @@ private:
 
   uint8_t rx_state = 0;             // State variable for state machine that handles asynchronous packet receiving
   volatile size_t rx_buf_tail = 0;  // Counter to indicate the progress of receiving data from the rx local buffer. Points to the next byte to be read.
-  volatile size_t rx_buf_head = 0;  // Counter to indicate the current length of data in the rx local buffer that is read later. Points to the last byte in the buffer. This value is incremented by the hardware buffer read interrupt routine.
+  volatile size_t rx_buf_head = 0;  // Counter to indicate the current length of data in the rx local buffer that is read later. Points to the last byte in the buffer.
   size_t rx_message_start = 0;      // Points to the beginning of the currently received message.
   uint16_t rx_message_length = 0;
 
@@ -33,8 +36,13 @@ private:
   char RX_BUFFER[RX_BUFFER_SIZE]{ 0 };
 
   size_t build_packet(const JsonDocument &tx_doc, char *dest, size_t dest_size);
+
+#ifdef ENABLE_RX_INTERRUPT_POLLING
   void enable_rx_serial_buffer_read_interrupt();
   void disable_rx_serial_buffer_read_interrupt();
+public:
+#endif
+  void rx_read_from_serial_to_local_buffer();
 
 public:
   enum ReceiveCode {
@@ -53,13 +61,11 @@ public:
   };
 
 private:
-  ReceiveCode _async_receive();
+  ReceiveCode receive_packet();
 
 public:
   Communication();
   void setup();
-
-  void read_from_rx_serial_buffer();
   ReceiveCode async_receive();
   TransmitCode enqueue_for_transmit(const JsonDocument &tx_doc);
   uint16_t async_transmit();

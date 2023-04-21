@@ -24,10 +24,12 @@ void setup() {
   Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
   while (!Serial) {};
 
+  // Communication setup
+  comm.setup();
+
   // Sensor setup
   mpu.setup();
   wheel_position_rad.setup();
-  comm.setup();
 }
 
 void loop() {

@@ -16,35 +16,50 @@ Communication::Communication() {
 }
 
 void Communication::setup() {
+#ifdef ENABLE_RX_INTERRUPT_POLLING
   /*
-  Set up timed interrupt for reading the hardware serial receive buffer (64 bytes) using timer/counter3.
+  Set up timed interrupt for reading the hardware serial receive buffer (64 bytes) using timer/counter3 which is free to use on Arduino Mega.
   The buffer is estimated to be full every 64 (Buffer size) * 86.806 µs (Real byte rate at 115200 baud rate) ~= 5 ms (Conservatively floored).
   So the timer must trigger the buffer read interrupt routine faster than that.
   */
   TCCR3A = 0;
   TCCR3B = 0;
   TCCR3B |= (1 << WGM32);               // Set CTC mode and clear counter on match with OCR3A.
-  TCCR3B |= (1 << CS32) | (1 << CS30);  // At a clock speed of 16 MHz (Arduino Mega 2560) use prescale factor 1/1024 for counter increment every 64 µs
+  TCCR3B |= (1 << CS32) | (1 << CS30);  // At a clock speed of 16 MHz (Arduino Mega 2560) use prescale factor 1024 for counter increment every 64 µs
   enable_rx_serial_buffer_read_interrupt();
 
-  // Output Compare Register A has to be set to a value lower than 5 ms (Hardware buffer full rate) / 64 µs (Counter increment rate) = 78.125.
-  // Lower values ensure a higher margin for delays in executing the read buffer routine and promise short interrupt times, since only few bytes have to be shifted from the hardware buffer to the local one.
-  // However, high frequency interrupts can cause problematic delays in the actual control loop.
-  // OCR3A is a 16 bit register. Accessing it requires to temporarily disable interrupts.
+  /* Output Compare Register A has to be set to a value lower than 5 ms (Hardware buffer full rate) / 64 µs (Counter increment rate) = 78.125.
+  Lower values ensure a higher margin for delays in executing the read buffer routine and promise short interrupt times, since only few bytes have to be shifted from the hardware buffer to the local one.
+  However, high frequency interrupts can cause problematic delays in the actual control loop.
+  OCR3A is a 16 bit register. Accessing it requires to temporarily disable interrupts.
+  Choosing e.g. 78 here results in reading the buffer when it is filled with 78 (Output Compare Register value) * 64 µs (Counter increment rate) / 86.806 µs (Real byte rate at 115200 baud rate) ~= 57.5 bytes !< 64 (Buffer size)
+  Experiments suggest, that more frequent interrupting results a higher receive success rate.
+  */
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    OCR3A = (uint16_t)20;  // Choosing e.g. 78 here results in reading the buffer when it is filled with 78 (Output Compare Register value) * 64 µs (Counter increment rate) / 86.806 µs (Real byte rate at 115200 baud rate) ~= 57.5 bytes !< 64 (Buffer size)
+    OCR3A = (uint16_t)20;  // This value should be bewteen 1 and 78 when using prescale factor 1024
   }
+#endif
 
   pinMode(LED_BUILTIN, OUTPUT);  // Indicator LED on when packet receive in progress.
 }
 
-// Receives data from the local rx buffer.
-// This method reads only the available chunk of data and then returns thus leaving the message completion up for the next cycles.
-// Filling the local rx buffer is done by a timer interrupt routine.
-Communication::ReceiveCode Communication::_async_receive() {
+void Communication::rx_read_from_serial_to_local_buffer() {
+  if (Serial.available() == 63) message_enqueue_for_transmit(F("Receive Warning: INSUFFICIENT_RECEIVE_RATE"));  // Buffer full
+  while (Serial.available()) {
+    if (rx_buf_head < RX_BUFFER_SIZE) {
+      RX_BUFFER[rx_buf_head++] = Serial.read();  // Transfer bytes from hardware buffer to extended local buffer.
+    } else {
+      message_enqueue_for_transmit(F("Receive Error: INCOMING_DATA_RATE_TOO_FAST"));  // When the buffer is filled, it means that messages come in faster that they can be deserialized.
+      rx_buf_tail = 0;
+      rx_buf_head = 0;
+      break;
+    }
+  }
+}
+
+Communication::ReceiveCode Communication::receive_packet() {
   if (rx_buf_tail == rx_buf_head) return ReceiveCode::NO_DATA_AVAILABLE;
   while (rx_buf_tail < rx_buf_head) {
-
     // Read buffer at tail
     uint8_t b = RX_BUFFER[rx_buf_tail];
 
@@ -82,7 +97,8 @@ Communication::ReceiveCode Communication::_async_receive() {
         rx_message_start = rx_buf_tail;
         rx_state = 3;
         break;
-      case 3:  // Wait for message to be complete
+      case 3:
+        // Wait for message to be complete
         rx_buf_tail = min(rx_message_length + rx_message_start, rx_buf_head);
         if (rx_message_length - (rx_buf_tail - rx_message_start) > 0) return ReceiveCode::RX_IN_PROGRESS;  // Wait for more data
 
@@ -117,18 +133,32 @@ Communication::ReceiveCode Communication::_async_receive() {
   return ReceiveCode::RX_IN_PROGRESS;
 }
 
-// Receives data from the serial port and stores it in rx_data in an asynchronous manner.
-// So this method reads only the available chunk of data and then returns thus leaving the message completion up for the next cycles.
-Communication::ReceiveCode Communication::async_receive() {
+/* 
+If ENABLE_RX_INTERRUPT_POLLING is defined:
+  Receives data from the local rx buffer which is filled by interrupt polling from the smaller buffer of the Serial class.
+  The size of this buffer is not changable without modding the Arduino implementation, so this approach was developed.
+  It is unclear if the resulting overhead when polling at a fixed rate by interrupt additioanlly to the interrupts caused when actually receiving data is affecting the runtime negatively.
+Otherwise:
+  Receives data from the serial port buffer directly by polling when called in loop().
 
+Both methods read only the available chunk of data and then return thus leaving the message completion up for the next cycles.
+*/
+Communication::ReceiveCode Communication::async_receive() {
+#ifdef ENABLE_RX_INTERRUPT_POLLING
   // Freeze hardware buffer read routine during evaluation of local buffer.
   disable_rx_serial_buffer_read_interrupt();
+#else
+  // Introduce same routine as what is used in an ISR when ENABLE_RX_INTERRUPT_POLLING is set.
+  rx_read_from_serial_to_local_buffer();
+#endif
 
   // Call implementation
-  ReceiveCode code = _async_receive();
+  ReceiveCode code = receive_packet();
 
+#ifdef ENABLE_RX_INTERRUPT_POLLING
   // Reenable hardware buffer read interrupts during loop
   enable_rx_serial_buffer_read_interrupt();
+#endif
 
   return code;
 }
@@ -241,6 +271,7 @@ void Communication::message_clear() {
   strlcpy(TX_STATUS_MSG_BUFFER, "", TX_STATUS_MSG_BUFFER_SIZE);
 }
 
+#ifdef ENABLE_RX_INTERRUPT_POLLING
 // ----------------------- RX Serial Buffer Read Interrupt Handling ------------------------
 
 void Communication::enable_rx_serial_buffer_read_interrupt() {
@@ -252,20 +283,7 @@ void Communication::disable_rx_serial_buffer_read_interrupt() {
   TIMSK3 = 0;  // Clear timer interrupt mask
 }
 
-void Communication::read_from_rx_serial_buffer() {
-  if (Serial.available() == 63) message_enqueue_for_transmit(F("Receive Warning: INSUFFICIENT_RECEIVE_RATE"));  // Buffer full
-  while (Serial.available()) {
-    if (rx_buf_head < RX_BUFFER_SIZE) {
-      RX_BUFFER[rx_buf_head++] = Serial.read();  // Transfer bytes from hardware buffer to extended local buffer.
-    } else {
-      message_enqueue_for_transmit(F("Receive Error: INCOMING_DATA_RATE_TOO_FAST"));  // When the buffer is filled, it means that messages come in faster that they can be deserialized.
-      rx_buf_tail = 0;
-      rx_buf_head = 0;
-      break;
-    }
-  }
-}
-
 ISR(TIMER3_COMPA_vect) {
-  comm.read_from_rx_serial_buffer();
+  comm.rx_read_from_serial_to_local_buffer();
 }
+#endif
