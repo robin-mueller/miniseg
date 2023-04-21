@@ -1,13 +1,18 @@
 import numpy as np
 import seaborn as sns
 import pyqtgraph as pg
+import configuration as config
 
-from typing import Callable
+from typing import Callable, NamedTuple
 from dataclasses import dataclass
 from collections import UserDict
-from configuration import THEME, PARAMETERS
 from time import perf_counter
-from PySide6.QtCore import QTime, QTimer
+from PySide6.QtCore import QTimer
+
+
+class StampedData(NamedTuple):
+    value: any
+    timestamp: float
 
 
 @dataclass(frozen=True, eq=True)
@@ -19,7 +24,7 @@ class CurveDefinition:
     - get_func: Getter function of the respective value.
     """
     label: str
-    get_func: Callable[[], float]
+    value_getter: Callable[[], StampedData]  # Has to return a tuple of value and timestamp in this order
 
 
 @dataclass
@@ -113,14 +118,15 @@ class ScheduledValue:
 
 
 class TimeseriesCurve(pg.PlotDataItem):
-    def __init__(self, curve: ColouredCurve, window_size_sec: float):
+    def __init__(self, label: str, color: any, window_size_sec: float):
         """
         A pyqtgraph PlotDataItem that scrolls the x axis when its data is being updated.
 
-        :param curve: A set of definition parameters.
+        :param label: The label of the curve.
+        :param color: The color of the curve. Accepts everything that pg.mkPen accepts for color keyword.
         :param window_size_sec: The length of the plotted curve in seconds.
         """
-        super().__init__(name=curve.definition.label, pen=pg.mkPen(color=curve.color, width=1))
+        super().__init__(name=label, pen=pg.mkPen(color=color, width=1))
         self._window_duration = window_size_sec
         self._visible_timeseries = np.array([[], []])
         self._recording_active = False
@@ -140,19 +146,19 @@ class TimeseriesCurve(pg.PlotDataItem):
     def recording_array(self):
         return self._recording_arr
 
-    def append_data(self, ts: float, value: float | None, *, display=True):
+    def append_data(self, value: float | None, ts: float, *, display=True):
         """
         Updates the curve of the plot by appending a new value at the provided frame timestamp ts.
         The initially defined window size in seconds will be respected.
 
-        :param ts: Timestamp of the value that indicates the time elapsed since the start of the application.
         :param value: Value to append to the curve.
+        :param ts: Timestamp of the value that indicates the time elapsed since the start of the application.
         :param display: Only updates the display if set to True. Otherwise, just stores the data.
         """
         # Initialize timeseries if first time calling
         _value = np.nan if value is None else value
         if not self._visible_timeseries.any():
-            t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * PARAMETERS.refresh_rate_hz))  # Initial time axis which is subject to change
+            t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * config.PARAMETERS.refresh_rate_hz))  # Initial time axis which is subject to change
             self._visible_timeseries = np.array([t, np.full(t.shape[0], np.nan)])  # Initial values np.nan
 
         # Extend recording array
@@ -171,7 +177,6 @@ class MonitoringGraph(pg.PlotItem):
     """
     Class for defining real-time monitoring graphs.
     """
-    earliest_start = QTime.currentTime()
 
     def __init__(self, curves: list[ColouredCurve] = None, *, title: str = None, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
         super().__init__(**kwargs)
@@ -179,7 +184,7 @@ class MonitoringGraph(pg.PlotItem):
         self.showGrid(y=True)
         self.addLegend(offset=(1, 1))
         self.setMouseEnabled(x=False)
-        self.setLabel('left', ylabel, color=THEME.foreground)
+        self.setLabel('left', ylabel, color=config.THEME.foreground)
         self.setLabel('bottom', xlabel)
         self._window_size = window_size_sec
 
@@ -194,7 +199,7 @@ class MonitoringGraph(pg.PlotItem):
         self.timer.timeout.connect(self._update)
 
     def add_curve(self, curve: ColouredCurve):
-        _curve = TimeseriesCurve(curve, self._window_size)
+        _curve = TimeseriesCurve(curve.definition.label, curve.color, self._window_size)
         self._curves_dict[curve.definition] = _curve
         self.addItem(_curve)
 
@@ -208,20 +213,17 @@ class MonitoringGraph(pg.PlotItem):
 
     @title.setter
     def title(self, text: str):
-        self.setTitle(text, color=THEME.foreground, size='18px')
+        self.setTitle(text, color=config.THEME.foreground, size='18px')
 
     @property
     def curves_dict(self):
         return self._curves_dict
 
     def _update(self):
-        for curve_def, ts in self._curves_dict.items():
-            ts.append_data(MonitoringGraph.earliest_start.msecsTo(QTime.currentTime()) / 1000, curve_def.get_func())
+        for curve_def, time_curve in self._curves_dict.items():
+            time_curve.append_data(*curve_def.value_getter())
 
-    def start(self, interval_hz: int = PARAMETERS.refresh_rate_hz):
-        current_time = QTime.currentTime()
-        if MonitoringGraph.earliest_start > current_time:
-            MonitoringGraph.earliest_start = current_time
+    def start(self, interval_hz: int = config.PARAMETERS.refresh_rate_hz):
         self.timer.start(round(1000 / interval_hz))
 
 

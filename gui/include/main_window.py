@@ -1,9 +1,10 @@
+import configuration as config
+
 from functools import partial
-from pathlib import Path
-from configuration import THEME
-from include.communication import BTDevice, InterfaceDefinition
 from resources.main_window_ui import Ui_MainWindow
-from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary
+from include.communication.bt_device import BTDevice
+from include.communication.interface import InterfaceDefinition, JsonInterfaceReader
+from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, StampedData
 from include.concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
@@ -13,15 +14,25 @@ from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
 
 
 class MiniSegGUI(QMainWindow):
+    INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
+
     def __init__(self):
         super().__init__(None)
+        self.start_time = QTime.currentTime()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
-        self.ui.console_splitter.setSizes([2 * QGuiApplication.primaryScreen().virtualSize().height(), 1 * QGuiApplication.primaryScreen().virtualSize().height()])
+        self.ui.console_splitter.setSizes([  # Set initial space distribution beween console and overview plot
+            2 * QGuiApplication.primaryScreen().virtualSize().height(),
+            1 * QGuiApplication.primaryScreen().virtualSize().height()]
+        )
 
         self.monitors: list[MonitoringWindow] = []
-        self.bt_device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
+        self.bt_device = BTDevice(
+            address=config.HC06_BLUETOOTH_ADDRESS,
+            rx_interface_def=InterfaceDefinition(self.INTERFACE_JSON.from_device, ("msg", str), ("ts", int)),
+            tx_interface_def=InterfaceDefinition(self.INTERFACE_JSON.to_device, ("sync_ts", int))
+        )
         self.bt_connect_task = ConcurrentTask(
             BTConnectWorker,
             self.bt_device.connect,
@@ -48,11 +59,11 @@ class MiniSegGUI(QMainWindow):
         self.ui.actionStartCalibration.triggered.connect(self.on_start_calibration)
 
         # Write to TX interface
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
+        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=(val, self.up_time)))
 
         # Curve definitions
         # noinspection PyPropertyAccess
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: self.setpoint_slider.value))
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.setpoint_slider.value, self.up_time)))
 
         def add_interface_curve_candidates(accessor: list[str], definition: InterfaceDefinition):
             for key, val in definition.items():
@@ -67,9 +78,13 @@ class MiniSegGUI(QMainWindow):
         # Add graphs
         self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
-            curves=[CurveLibrary.definitions("POSITION_SETPOINT", THEME.primary)]
+            curves=[CurveLibrary.definitions("POSITION_SETPOINT", config.THEME.primary)]
         )
         self.graphs[0].start()
+
+    @property
+    def up_time(self):
+        return self.start_time.msecsTo(QTime.currentTime()) / 1e3
 
     def on_bt_connect(self):
         self.ui.actionConnect.setEnabled(False)
