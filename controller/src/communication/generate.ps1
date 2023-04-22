@@ -71,7 +71,7 @@ function CreateInterfaceStruct($interfaceDef)
 }
 function CreateInterfaceStructFromDoc($interfaceDef)
 {
-    function AssignStructMember($val, $accessor)
+    function AssignStructMember($val, $accessor, $counter)
     {
         $string = ""
         if ($val.GetType().Name -eq "String")
@@ -80,26 +80,30 @@ function CreateInterfaceStructFromDoc($interfaceDef)
             {
                 # char arrays must be assigned using strlcpy
                 $size = [int]$Matches[1]
-                $string += "strlcpy(this->$accessor, doc[`"$($accessor.Replace('.', '`"][`"') )`"] | `"`", $size);`n"
+                $string += "JsonVariant var$counter = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$counter.isNull()) strlcpy(this->$accessor, doc[`"$($accessor.Replace('.', '`"][`"') )`"] | `"`", $size);`n"
             }
             else
             {
-                $string = "this->$accessor = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`n"
+                $string = "JsonVariant var$counter = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$counter.isNull()) this->$accessor = var$counter.as<$val>();`n"
             }
         }
         elseif ($val.GetType().Name -eq "PSCustomObject")
         {
             foreach ($prop in $val.psobject.Properties)
             {
-                $string += AssignStructMember $prop.Value "$accessor.$( $prop.Name )"
+                $string += AssignStructMember $prop.Value "$accessor.$( $prop.Name )" $counter
+                $counter++
             }
         }
         return $string
     }
+
+    $counter = 0
     $string = ""
     foreach ($prop in $interfaceDef.psobject.Properties)
     {
-        $string += AssignStructMember $prop.Value $prop.Name
+        $string += AssignStructMember $prop.Value $prop.Name $counter
+        $counter++
     }
     return $string
 }
@@ -123,6 +127,7 @@ function CreateInterfaceStructToDoc($interfaceDef)
         }
         return $string
     }
+
     $string = ""
     foreach ($prop in $interfaceDef.psobject.Properties)
     {

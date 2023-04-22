@@ -71,9 +71,13 @@ void loop() {
     // double &tilt_angle_deg = ;
     // double &tilt_vel_deg_s = ;
 
-
+    static uint32_t m = 0;
     if (comm.rx_data.control_state) {
-      // Control loop here
+      if (millis() > m + 1000) {
+        comm.message_enqueue_for_transmit(F("TEST"));
+        m = millis();
+      }
+
     }
 
     // Finish loop
