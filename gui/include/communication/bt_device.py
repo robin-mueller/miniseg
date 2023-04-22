@@ -1,49 +1,73 @@
-import json
 import time
+import json
 import warnings
 import select
+import configuration as config
 
-from pathlib import Path
 from bluetooth import discover_devices, BluetoothSocket
-from include.communication.interface import InterfaceDefinition, Interface
-from include.plotting import StampedData
+from include.communication.interface import DataInterface, DataInterfaceDefinition, JsonInterfaceReader
+
+INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
+
+
+class ReceiveInterface(DataInterface):
+    STATUS_MESSAGE_KEY = "msg"
+    DEFINITION = DataInterfaceDefinition((STATUS_MESSAGE_KEY, str), **INTERFACE_JSON.from_device)
+
+    def __init__(self):
+        super().__init__(self.DEFINITION, lambda: self._last_receive_ts - config.PROGRAM_START_TIMESTAMP)
+        self._last_receive_ts = 0
+
+    def update_receive_time(self):
+        self._last_receive_ts = time.perf_counter()
+
+    @property
+    def status_message(self):
+        return self.__getitem__(self.STATUS_MESSAGE_KEY)
+
+
+class TransmitInterface(DataInterface):
+    DEFINITION = DataInterfaceDefinition(**INTERFACE_JSON.to_device)
+
+    def __init__(self):
+        super().__init__(self.DEFINITION, lambda: config.program_uptime())
 
 
 class BTDevice:
+    MSG_START_TOKEN = b'$'
+    MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
+    MSG_SIZE_HINT_LEN = 2
+    MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
+    CONNECT_TIMEOUT_SEC = 5.0
+    RX_CHUNK_SIZE = 4096
+    ALLOWED_RX_BUFFERBLOAT = 1024
+
     class NotConnectedError(Exception):
         pass
 
     class InvalidDataError(Exception):
         pass
 
-    MSG_START_TOKEN = b'$'
-    MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
-    MSG_SIZE_HINT_LEN = 2
-    MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
-
-    def __init__(self, address: str, rx_interface_def: InterfaceDefinition, tx_interface_def: InterfaceDefinition, connect_timeout_sec: float = 5.0, rx_chunk_size: int = 4096, allowed_rx_bufferbloat: int = 1024):
+    def __init__(self, address: str):
         self._address = address
-        self._conn_timeout = connect_timeout_sec
-        self._rx_chunk_size = rx_chunk_size
-        self._allowed_rx_bufferbloat = allowed_rx_bufferbloat
         self._rx_buffer = bytearray()
         self._connected = False
         self._socket: BluetoothSocket | None = None
-        self._rx_interface = Interface(rx_interface_def)
-        self._tx_interface = Interface(tx_interface_def)
+        self._rx_data = ReceiveInterface()
+        self._tx_data = TransmitInterface()
 
     @property
-    def tx_interface(self):
-        return self._tx_interface
+    def tx_data(self):
+        return self._tx_data
 
     @property
-    def rx_interface(self):
-        return self._rx_interface
+    def rx_data(self):
+        return self._rx_data
 
     def connect(self):
         if not self._connected:
             self._socket = BluetoothSocket()
-            self._socket.settimeout(self._conn_timeout)
+            self._socket.settimeout(self.CONNECT_TIMEOUT_SEC)
             self._socket.connect((self._address, 1))
             self._connected = True
 
@@ -53,18 +77,18 @@ class BTDevice:
             self._socket = None
             self._connected = False
 
-    def send(self, write: dict = None, /, **kwargs):
-        if write:
-            self.tx_interface.update(write)
-        if kwargs:
-            self.tx_interface.update(kwargs)
+    def send(self, **kwargs):
         if self._connected:
-            msg_bytes = json.dumps(self.tx_interface, cls=Interface.JSONEncoder, separators=(',', ':')).encode()
-            msg_bytes = self.MSG_START_TOKEN + len(msg_bytes).to_bytes(2, 'big') + msg_bytes
-            try:
-                self._socket.sendall(msg_bytes)
-            except Exception as e:
-                raise e
+
+            # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
+            self._tx_data.update(kwargs)
+
+            # Only send the data unknown to the device on the other end of the connection
+            json_data = json.dumps(kwargs, separators=(',', ':')).encode()
+            packet = self.MSG_START_TOKEN + len(json_data).to_bytes(2, "big") + json_data
+
+            # Send the packet
+            self._socket.sendall(packet)
         else:
             raise self.NotConnectedError("Cannot send when device is not connected via Bluetooth!")
 
@@ -75,7 +99,7 @@ class BTDevice:
 
                 # Receive header that contains start bit and message length
                 while True:
-                    b = self._socket.recv(self._rx_chunk_size)
+                    b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
                         return b''
                     self._rx_buffer.extend(b)
@@ -85,23 +109,23 @@ class BTDevice:
                 self._rx_buffer = self._rx_buffer[msg_start:]  # Remove msg start token from buffer
 
                 while len(self._rx_buffer) < self.MSG_HEADER_LEN:
-                    b = self._socket.recv(self._rx_chunk_size)
+                    b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
                         return b''
                     self._rx_buffer.extend(b)
-                msg_len = int.from_bytes(self._rx_buffer[self.MSG_START_TOKEN_LEN:self.MSG_START_TOKEN_LEN + self.MSG_SIZE_HINT_LEN], 'big')
+                msg_len = int.from_bytes(self._rx_buffer[self.MSG_START_TOKEN_LEN:self.MSG_START_TOKEN_LEN + self.MSG_SIZE_HINT_LEN], "big")
                 self._rx_buffer = self._rx_buffer[self.MSG_HEADER_LEN:]  # Remove msg header from buffer
 
                 # Receive actual message
                 while len(self._rx_buffer) < msg_len:
-                    b = self._socket.recv(self._rx_chunk_size)
+                    b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
                         return b''
                     self._rx_buffer.extend(b)
                 msg = self._rx_buffer[:msg_len]
                 self._rx_buffer = self._rx_buffer[msg_len:]  # Remove received message from buffer
 
-                if len(self._rx_buffer) > self._allowed_rx_bufferbloat:
+                if len(self._rx_buffer) > self.ALLOWED_RX_BUFFERBLOAT:
                     warnings.warn(f"Bufferbloat is very large which means that incoming messages aren't processed fast enough. "
                                   f"After message receive {len(self._rx_buffer)} bytes were left over in the buffer.", RuntimeWarning)
                 return bytes(msg)
@@ -111,11 +135,11 @@ class BTDevice:
 
     def deserialize(self, received: bytes):
         try:
-            data = json.loads(received.decode())
-        except ValueError:  # Incomplete JSON message, continue to accumulate incoming data
-            raise self.InvalidDataError(f"Could not interprete received data: {received}") from None
+            new_data: dict[str, any] = json.loads(received.decode())
+        except ValueError:
+            raise self.InvalidDataError(f"Could not interprete received data: {received}")
         else:
-            self.rx_interface.update({k: StampedData(v, data["ts"]) for k, v in data.items()})
+            self._rx_data.update(new_data)  # Update rx data interface. This simultaneously verifies that the data is consistent with the interface.
 
     @staticmethod
     def discover():
@@ -123,18 +147,3 @@ class BTDevice:
         print(f"Found {len(nearby_devices)} devices:")
         for addr, name in nearby_devices:
             print(f"Adress: {addr} - Name: {name}")
-
-
-if __name__ == "__main__":
-    device = BTDevice("98:D3:A1:FD:34:63", Path(__file__).parent.parent.parent / "interface.json")
-    device.tx_interface["controller_state"] = True
-    device.connect()
-    device.send()
-    time.sleep(0.5)
-    device.disconnect()
-
-    # i = 0
-    # while i < 10:
-    #     i += 1
-    #     print(device._socket.recv(1024))
-    #     time.sleep(0.5)

@@ -3,8 +3,8 @@ import configuration as config
 from functools import partial
 from resources.main_window_ui import Ui_MainWindow
 from include.communication.bt_device import BTDevice
-from include.communication.interface import InterfaceDefinition, JsonInterfaceReader
-from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, StampedData
+from include.communication.interface import DataInterfaceDefinition, JsonInterfaceReader, StampedData
+from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from include.concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from include.monitoring_window import MonitoringWindow
 from include.widget import SetpointSlider, ParameterSection, HeaderSection
@@ -14,11 +14,13 @@ from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
 
 
 class MiniSegGUI(QMainWindow):
+
     INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
+    BT_TRANSMIT_DATA_DEF = DataInterfaceDefinition(**INTERFACE_JSON.to_device)
 
     def __init__(self):
         super().__init__(None)
-        self.start_time = QTime.currentTime()
+        self.start_time: QTime = QTime.currentTime()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
@@ -28,11 +30,9 @@ class MiniSegGUI(QMainWindow):
         )
 
         self.monitors: list[MonitoringWindow] = []
-        self.bt_device = BTDevice(
-            address=config.HC06_BLUETOOTH_ADDRESS,
-            rx_interface_def=InterfaceDefinition(self.INTERFACE_JSON.from_device, ("msg", str), ("ts", int)),
-            tx_interface_def=InterfaceDefinition(self.INTERFACE_JSON.to_device, ("sync_ts", int))
-        )
+
+        # Bluetooth data
+        self.bt_device = BTDevice(config.HC06_BLUETOOTH_ADDRESS)
         self.bt_connect_task = ConcurrentTask(
             BTConnectWorker,
             self.bt_device.connect,
@@ -45,6 +45,7 @@ class MiniSegGUI(QMainWindow):
             on_success=self.on_bt_received,
             repeat_ms=0
         )
+        self.bt_receive_time: QTime = self.start_time
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
@@ -58,33 +59,33 @@ class MiniSegGUI(QMainWindow):
         self.ui.actionDisconnect.triggered.connect(self.on_bt_disconnect)
         self.ui.actionStartCalibration.triggered.connect(self.on_start_calibration)
 
+        # Add receive callbacks
+        self.bt_device.rx_data.execute_when_set("calibrated", self.reset_calibration)
+        self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
+
         # Write to TX interface
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=(val, self.up_time)))
+        self.setpoint_slider.changed.connect(lambda val: self.bt_device.send(pos_setpoint=val))
+        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
 
         # Curve definitions
-        # noinspection PyPropertyAccess
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.setpoint_slider.value, self.up_time)))
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, config.program_uptime())))
 
-        def add_interface_curve_candidates(accessor: list[str], definition: InterfaceDefinition):
+        def add_interface_curve_candidates(accessor: list[str], definition: DataInterfaceDefinition):
             for key, val in definition.items():
                 _accessor = accessor + [key]
                 if val in [float, int, bool]:
-                    CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_interface.get, tuple(_accessor))))
-                elif isinstance(val, InterfaceDefinition):
+                    CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_data.get, tuple(_accessor))))
+                elif isinstance(val, DataInterfaceDefinition):
                     add_interface_curve_candidates(_accessor, val)
 
-        add_interface_curve_candidates([], self.bt_device.rx_interface.definition)
+        add_interface_curve_candidates([], self.bt_device.rx_data.definition)
 
         # Add graphs
-        self.graphs: GraphDict[str, MonitoringGraph] = GraphDict(self.ui.plot_overview)
+        self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         self.graphs[0] = MonitoringGraph(
             curves=[CurveLibrary.definitions("POSITION_SETPOINT", config.THEME.primary)]
         )
         self.graphs[0].start()
-
-    @property
-    def up_time(self):
-        return self.start_time.msecsTo(QTime.currentTime()) / 1e3
 
     def on_bt_connect(self):
         self.ui.actionConnect.setEnabled(False)
@@ -123,25 +124,18 @@ class MiniSegGUI(QMainWindow):
         if not received:
             return
 
-        # Update RX interface
-        self.bt_device.deserialize(received)
-
-        # Reset calibration flags
-        if self.bt_device.tx_interface["calibration"] and self.bt_device.rx_interface["calibrated"]:
-            self.bt_device.tx_interface["calibration"] = False
-            self.ui.actionStartCalibration.setEnabled(True)
-            self.bt_device.send(calibration=False)
-
-        # Write received message to terminal
-        msg = self.bt_device.rx_interface["msg"]
-        if msg:
-            self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg}")
-            self.bt_device.rx_interface["msg"] = ""  # Clear message buffer
+        self.bt_device.rx_data.update_receive_time()  # Update receive time
+        self.bt_device.deserialize(received)  # Update RX interface
 
     def on_start_calibration(self):
-        self.bt_device.rx_interface["calibrated"] = False
+        self.bt_device.rx_data["calibrated"] = False
         self.ui.actionStartCalibration.setEnabled(False)
         self.bt_device.send(calibration=True)
+
+    def reset_calibration(self, calibrated: StampedData):
+        if calibrated.value is True:
+            self.bt_device.tx_data["calibration"] = False
+            self.ui.actionStartCalibration.setEnabled(True)
 
     def on_open_monitor(self):
         new_monitor = MonitoringWindow()

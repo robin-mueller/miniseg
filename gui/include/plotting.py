@@ -3,16 +3,12 @@ import seaborn as sns
 import pyqtgraph as pg
 import configuration as config
 
-from typing import Callable, NamedTuple
+from typing import Callable
 from dataclasses import dataclass
 from collections import UserDict
 from time import perf_counter
 from PySide6.QtCore import QTimer
-
-
-class StampedData(NamedTuple):
-    value: any
-    timestamp: float
+from include.communication.interface import StampedData
 
 
 @dataclass(frozen=True, eq=True)
@@ -146,7 +142,7 @@ class TimeseriesCurve(pg.PlotDataItem):
     def recording_array(self):
         return self._recording_arr
 
-    def append_data(self, value: float | None, ts: float, *, display=True):
+    def append_data(self, value: float | None, ts: float, /, display=True):
         """
         Updates the curve of the plot by appending a new value at the provided frame timestamp ts.
         The initially defined window size in seconds will be respected.

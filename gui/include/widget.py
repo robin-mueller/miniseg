@@ -50,18 +50,18 @@ class ParameterSection(QMLWidget):
 
 class SetpointSlider(QMLWidget):
     SOURCE = "qrc:/include/qml/SetpointSlider.qml"
-    value_changed = Signal(int)
+    changed = Signal(int)
 
     def __init__(self, widget_frame: QFrame):
         self._value = 0
         super().__init__(widget_frame)
 
-    @Property(int, notify=value_changed)
+    @Property(int, notify=changed)
     def value(self):
         return self._value
 
     @value.setter
     def value(self, val: int):
         self._value = val
-        self.value_changed.emit(val)
+        self.changed.emit(val)
         
