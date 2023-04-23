@@ -34,10 +34,12 @@ void MinSegMPU::setup() {
   mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G2000DPS;         // Gyro range in +/- dps (degrees per second)
   mpu_setting.accel_dlpf_cfg = ACCEL_DLPF_CFG::DLPF_45HZ;  // Accelerometer digital low pass filter bandwith
   mpu_setting.gyro_dlpf_cfg = GYRO_DLPF_CFG::DLPF_41HZ;    // Gyro digital low pass filter bandwith
+  mpu_setting.fifo_sample_rate = FIFO_SAMPLE_RATE::SMPL_200HZ;
   MPU9250::setup(0x68, mpu_setting);
 
   // Filter for removing yaw angle drift using 9-DOF sensor fusion
   selectFilter(QuatFilterSel::NONE);
+  setFilterIterations(10);
 
   // Calibration values
   setAccBias(18, 49, 3);

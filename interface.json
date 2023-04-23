@@ -15,6 +15,17 @@
       },
       "vel_deg_s": "double"
     },
+    "mpu": {
+      "gyroX": "double",
+      "gyroY": "double",
+      "gyroZ": "double",
+      "accX": "double",
+      "accY": "double",
+      "accZ": "double",
+      "roll": "double",
+      "pitch": "double",
+      "yaw": "double"
+    },
     "calibrated": "bool",
     "loop_time_us": "uint32_t"
   },

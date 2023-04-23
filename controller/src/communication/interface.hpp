@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 #define JSON_DOC_SIZE_RX 63
-#define JSON_DOC_SIZE_TX 104
+#define JSON_DOC_SIZE_TX 184
 
 struct ReceiveInterface {
 bool calibration;
@@ -32,6 +32,17 @@ double from_acc;
 } angle_deriv_deg_s;
 double vel_deg_s;
 } tilt;
+struct {
+double gyroX;
+double gyroY;
+double gyroZ;
+double accX;
+double accY;
+double accZ;
+double roll;
+double pitch;
+double yaw;
+} mpu;
 bool calibrated;
 uint32_t loop_time_us;
 

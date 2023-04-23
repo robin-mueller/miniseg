@@ -24,6 +24,16 @@ JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
 angle_deriv_deg_s["from_euler"] = this->tilt.angle_deriv_deg_s.from_euler;
 angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
 tilt["vel_deg_s"] = this->tilt.vel_deg_s;
+JsonObject mpu = doc.createNestedObject("mpu");
+mpu["gyroX"] = this->mpu.gyroX;
+mpu["gyroY"] = this->mpu.gyroY;
+mpu["gyroZ"] = this->mpu.gyroZ;
+mpu["accX"] = this->mpu.accX;
+mpu["accY"] = this->mpu.accY;
+mpu["accZ"] = this->mpu.accZ;
+mpu["roll"] = this->mpu.roll;
+mpu["pitch"] = this->mpu.pitch;
+mpu["yaw"] = this->mpu.yaw;
 doc["calibrated"] = this->calibrated;
 doc["loop_time_us"] = this->loop_time_us;
 

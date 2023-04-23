@@ -70,6 +70,17 @@ void loop() {
     comm.tx_data.tilt.angle_deriv_deg_s.from_euler = mpu.tilt_angle_from_euler_deg.derivative();
     comm.tx_data.tilt.vel_deg_s = mpu.tilt_vel_deg_s();
 
+    comm.tx_data.mpu.gyroX = mpu.getGyroX();
+    comm.tx_data.mpu.gyroY = mpu.getGyroY();
+    comm.tx_data.mpu.gyroZ = mpu.getGyroZ();
+    comm.tx_data.mpu.accX = mpu.getAccX();
+    comm.tx_data.mpu.accY = mpu.getAccY();
+    comm.tx_data.mpu.accZ = mpu.getAccZ();
+    comm.tx_data.mpu.roll = mpu.getRoll();
+    comm.tx_data.mpu.pitch = mpu.getPitch();
+    comm.tx_data.mpu.yaw = mpu.getYaw();
+    
+
     // Reference controller state
     // double &wheel_pos_rad = tx_data.wheel.pos_rad;
     // double &tilt_angle_deg = ;
