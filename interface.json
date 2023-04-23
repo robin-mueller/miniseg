@@ -15,7 +15,8 @@
       },
       "vel_deg_s": "double"
     },
-    "calibrated": "bool"
+    "calibrated": "bool",
+    "loop_time_us": "uint32_t"
   },
   "TO_DEVICE": {
     "calibration": "bool",

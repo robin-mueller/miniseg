@@ -3,28 +3,29 @@
 #include "interface.hpp"
 
 void ReceiveInterface::from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc) {
-  JsonVariant var0 = doc["calibration"];
-  if (!var0.isNull()) this->calibration = var0.as<bool>();
-  JsonVariant var1 = doc["control_state"];
-  if (!var1.isNull()) this->control_state = var1.as<bool>();
-  JsonVariant var2 = doc["pos_setpoint"];
-  if (!var2.isNull()) this->pos_setpoint = var2.as<double>();
+JsonVariant var0 = doc["calibration"];
+if (!var0.isNull()) this->calibration = var0.as<bool>();
+JsonVariant var1 = doc["control_state"];
+if (!var1.isNull()) this->control_state = var1.as<bool>();
+JsonVariant var2 = doc["pos_setpoint"];
+if (!var2.isNull()) this->pos_setpoint = var2.as<double>();
 }
 
 StaticJsonDocument<JSON_DOC_SIZE_TX> TransmitInterface::to_doc() {
-  StaticJsonDocument<JSON_DOC_SIZE_TX> doc;
-  JsonObject wheel = doc.createNestedObject("wheel");
-  wheel["pos_rad"] = this->wheel.pos_rad;
-  wheel["pos_deriv_rad_s"] = this->wheel.pos_deriv_rad_s;
-  JsonObject tilt = doc.createNestedObject("tilt");
-  JsonObject angle_deg = tilt.createNestedObject("angle_deg");
-  angle_deg["from_euler"] = this->tilt.angle_deg.from_euler;
-  angle_deg["from_acc"] = this->tilt.angle_deg.from_acc;
-  JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
-  angle_deriv_deg_s["from_euler"] = this->tilt.angle_deriv_deg_s.from_euler;
-  angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
-  tilt["vel_deg_s"] = this->tilt.vel_deg_s;
-  doc["calibrated"] = this->calibrated;
+StaticJsonDocument<JSON_DOC_SIZE_TX> doc;
+JsonObject wheel = doc.createNestedObject("wheel");
+wheel["pos_rad"] = this->wheel.pos_rad;
+wheel["pos_deriv_rad_s"] = this->wheel.pos_deriv_rad_s;
+JsonObject tilt = doc.createNestedObject("tilt");
+JsonObject angle_deg = tilt.createNestedObject("angle_deg");
+angle_deg["from_euler"] = this->tilt.angle_deg.from_euler;
+angle_deg["from_acc"] = this->tilt.angle_deg.from_acc;
+JsonObject angle_deriv_deg_s = tilt.createNestedObject("angle_deriv_deg_s");
+angle_deriv_deg_s["from_euler"] = this->tilt.angle_deriv_deg_s.from_euler;
+angle_deriv_deg_s["from_acc"] = this->tilt.angle_deriv_deg_s.from_acc;
+tilt["vel_deg_s"] = this->tilt.vel_deg_s;
+doc["calibrated"] = this->calibrated;
+doc["loop_time_us"] = this->loop_time_us;
 
-  return doc;
+return doc;
 }

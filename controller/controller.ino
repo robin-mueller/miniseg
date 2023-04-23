@@ -33,6 +33,10 @@ void setup() {
 }
 
 void loop() {
+  static uint32_t loop_start_us = micros();
+  comm.tx_data.loop_time_us = micros() - loop_start_us;
+  loop_start_us = micros();
+
   // Receive available data
   switch (comm.async_receive()) {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
@@ -53,7 +57,7 @@ void loop() {
 
   bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible to keep up with the configured sensor sample rate
 
-  static uint32_t control_cycle_start_ms = 0;
+  static uint32_t control_cycle_start_ms = millis();
   if (new_mpu_data && millis() > control_cycle_start_ms + CONTROLLER_UPDATE_INTERVAL_MS) {
     control_cycle_start_ms = millis();
 
@@ -71,12 +75,7 @@ void loop() {
     // double &tilt_angle_deg = ;
     // double &tilt_vel_deg_s = ;
 
-    static uint32_t m = 0;
     if (comm.rx_data.control_state) {
-      if (millis() > m + 1000) {
-        comm.message_enqueue_for_transmit(F("TEST"));
-        m = millis();
-      }
 
     }
 

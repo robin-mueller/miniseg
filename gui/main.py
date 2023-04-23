@@ -3,7 +3,7 @@ import qdarktheme
 
 # noinspection PyUnresolvedReferences
 from resources import rc_resources  # Loads Qt resources to become available for PySide6
-from include.main_window import MiniSegGUI
+from application.main_window import MinSegGUI
 from configuration import THEME
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 from PySide6.QtWidgets import QApplication
@@ -26,6 +26,6 @@ if __name__ == "__main__":
         },
         corner_shape="sharp"
     )
-    window = MiniSegGUI()
+    window = MinSegGUI()
     window.show()
     sys.exit(app.exec())

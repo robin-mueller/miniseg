@@ -4,8 +4,9 @@ import warnings
 import select
 import configuration as config
 
+from application import PROGRAM_START_TIMESTAMP, program_uptime
 from bluetooth import discover_devices, BluetoothSocket
-from include.communication.interface import DataInterface, DataInterfaceDefinition, JsonInterfaceReader
+from application.communication.interface import DataInterface, DataInterfaceDefinition, JsonInterfaceReader
 
 INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
 
@@ -15,7 +16,7 @@ class ReceiveInterface(DataInterface):
     DEFINITION = DataInterfaceDefinition((STATUS_MESSAGE_KEY, str), **INTERFACE_JSON.from_device)
 
     def __init__(self):
-        super().__init__(self.DEFINITION, lambda: self._last_receive_ts - config.PROGRAM_START_TIMESTAMP)
+        super().__init__(self.DEFINITION, lambda: self._last_receive_ts - PROGRAM_START_TIMESTAMP)
         self._last_receive_ts = 0
 
     def update_receive_time(self):
@@ -30,10 +31,10 @@ class TransmitInterface(DataInterface):
     DEFINITION = DataInterfaceDefinition(**INTERFACE_JSON.to_device)
 
     def __init__(self):
-        super().__init__(self.DEFINITION, lambda: config.program_uptime())
+        super().__init__(self.DEFINITION, program_uptime)
 
 
-class BTDevice:
+class BluetoothDevice:
     MSG_START_TOKEN = b'$'
     MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
     MSG_SIZE_HINT_LEN = 2

@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 #define JSON_DOC_SIZE_RX 63
-#define JSON_DOC_SIZE_TX 96
+#define JSON_DOC_SIZE_TX 104
 
 struct ReceiveInterface {
 bool calibration;
@@ -33,6 +33,7 @@ double from_acc;
 double vel_deg_s;
 } tilt;
 bool calibrated;
+uint32_t loop_time_us;
 
 StaticJsonDocument<JSON_DOC_SIZE_TX> to_doc();
 };

@@ -39,7 +39,8 @@ class DataInterfaceDefinition(UserDict):
         "bool": bool,
         "float": float,
         "double": float,
-        "int": int
+        "int": int,
+        "uint32_t": int
     }
 
     class MissingCorrespondingType(Exception):
@@ -57,7 +58,7 @@ class DataInterfaceDefinition(UserDict):
         if isinstance(val, str):
             if val not in self.TYPE_TRANSLATION:
                 raise self.MissingCorrespondingType(f"Type translation for '{val}' is missing.")
-            super().__setitem__(key, self.TYPE_TRANSLATION[re.sub(r'\d+', '', val)])
+            super().__setitem__(key, self.TYPE_TRANSLATION[re.sub(r'\[\d+]', '[]', val)])  # Replace arry size specification with just empty []
         elif isinstance(val, dict):
             super().__setitem__(key, self.__class__(**val))
         elif isinstance(val, type):

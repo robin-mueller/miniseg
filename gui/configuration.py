@@ -1,16 +1,9 @@
-import time
-
 from pathlib import Path
 from PySide6.QtCore import QObject, Property
 from PySide6.QtQml import qmlRegisterSingletonType
 
-PROGRAM_START_TIMESTAMP = time.perf_counter()
 HC06_BLUETOOTH_ADDRESS = "98:D3:A1:FD:34:63"
 JSON_INTERFACE_DEFINITION_PATH = Path(__file__).parent.parent / "interface.json"
-
-
-def program_uptime():
-    return time.perf_counter() - PROGRAM_START_TIMESTAMP
 
 
 class Parameters(QObject):

@@ -6,8 +6,8 @@ from collections import UserDict
 from typing import Optional
 from pathlib import Path
 from configuration import PARAMETERS
-from include.helper import KeepMenuOpen
-from include.plotting import MonitoringGraph, GraphDict, CurveLibrary, CurveDefinition, ColouredCurve
+from .helper import KeepMenuOpen
+from .plotting import MonitoringGraph, GraphDict, CurveLibrary, CurveDefinition, ColouredCurve
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QMenu, QFileDialog

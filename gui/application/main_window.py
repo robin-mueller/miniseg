@@ -1,23 +1,20 @@
 import configuration as config
 
+from application.communication.device import BluetoothDevice
+from application.communication.interface import DataInterfaceDefinition, StampedData
+from . import program_uptime
+from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
+from .concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
+from .monitoring_window import MonitoringWindow
+from .widget import SetpointSlider, ParameterSection, HeaderSection
 from functools import partial
 from resources.main_window_ui import Ui_MainWindow
-from include.communication.bt_device import BTDevice
-from include.communication.interface import DataInterfaceDefinition, JsonInterfaceReader, StampedData
-from include.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
-from include.concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
-from include.monitoring_window import MonitoringWindow
-from include.widget import SetpointSlider, ParameterSection, HeaderSection
 from PySide6.QtCore import QTime
 from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
 
 
-class MiniSegGUI(QMainWindow):
-
-    INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
-    BT_TRANSMIT_DATA_DEF = DataInterfaceDefinition(**INTERFACE_JSON.to_device)
-
+class MinSegGUI(QMainWindow):
     def __init__(self):
         super().__init__(None)
         self.start_time: QTime = QTime.currentTime()
@@ -32,7 +29,7 @@ class MiniSegGUI(QMainWindow):
         self.monitors: list[MonitoringWindow] = []
 
         # Bluetooth data
-        self.bt_device = BTDevice(config.HC06_BLUETOOTH_ADDRESS)
+        self.bt_device = BluetoothDevice(config.HC06_BLUETOOTH_ADDRESS)
         self.bt_connect_task = ConcurrentTask(
             BTConnectWorker,
             self.bt_device.connect,
@@ -68,7 +65,7 @@ class MiniSegGUI(QMainWindow):
         self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
 
         # Curve definitions
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, config.program_uptime())))
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, program_uptime())))
 
         def add_interface_curve_candidates(accessor: list[str], definition: DataInterfaceDefinition):
             for key, val in definition.items():
