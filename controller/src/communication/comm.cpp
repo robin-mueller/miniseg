@@ -186,12 +186,12 @@ Communication::TransmitCode Communication::enqueue_for_transmit(const JsonDocume
   size_t packet_size = build_packet(tx_doc, TX_BUFFER + tx_buf_head, TX_BUFFER_SIZE - tx_buf_head);
 
   // Append packet to tx serial buffer if it was successfully created
-  if (packet_size) {
+  if (packet_size > 0) {
     tx_buf_head += packet_size;
     return TransmitCode::TX_SUCCESS;
   }
-  if (tx_buf_tail < tx_buf_head) return TransmitCode::INSUFFICIENT_TRANSMIT_RATE;
-  return TransmitCode::PACKET_EXCEEDS_TX_BUFFER_SIZE;  // This occurs if the packet size is too big for the transmit buffer or if it cannot be depleted faster than new data is added
+  if (3 + measureJson(tx_doc) > TX_BUFFER_SIZE) return TransmitCode::TX_BUFFER_TOO_SMALL_TO_FIT_DATA;  // This occurs if the data is too big to fit in the transmit buffer
+  return TransmitCode::TRANSMIT_RATE_TOO_LOW; // This occurs if the buffer cannot be depleted faster than new data is added. The buffer would overflow if the recent packet would be added, so it is discarded.
 }
 
 // Forwards bytes from the transmit buffer to the hardware buffer that sends out serial data.

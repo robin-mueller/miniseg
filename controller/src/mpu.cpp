@@ -30,21 +30,17 @@ void MinSegMPU::setup() {
   Wire.setClock(400000);
 
   MPU9250Setting mpu_setting;
-  mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A16G;           // Accelerometer range in +/- g (gravitational force on earth)
-  mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G2000DPS;         // Gyro range in +/- dps (degrees per second)
+  mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A4G;            // Accelerometer range in +/- g (gravitational force on earth)
+  mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G500DPS;          // Gyro range in +/- dps (degrees per second)
   mpu_setting.accel_dlpf_cfg = ACCEL_DLPF_CFG::DLPF_45HZ;  // Accelerometer digital low pass filter bandwith
   mpu_setting.gyro_dlpf_cfg = GYRO_DLPF_CFG::DLPF_41HZ;    // Gyro digital low pass filter bandwith
   mpu_setting.fifo_sample_rate = FIFO_SAMPLE_RATE::SMPL_200HZ;
   MPU9250::setup(0x68, mpu_setting);
 
   // Filter for removing yaw angle drift using 9-DOF sensor fusion
-  selectFilter(QuatFilterSel::NONE);
+  selectFilter(QuatFilterSel::MAHONY);
   setFilterIterations(10);
 
-  // Calibration values
-  setAccBias(18, 49, 3);
-  setGyroBias(-2.1, 0.12, 0.98);
-  setMagBias(57.54, 44.81, 264.36);
-  setMagScale(1.4, 1.02, 0.75);
-  setMagneticDeclination(5.016667);  // Magnetic declination in Lund on 16th of April 2022 from https://www.magnetic-declination.com/
+  // Magnetic declination in Lund on 16th of April 2022 from https://www.magnetic-declination.com/
+  setMagneticDeclination(5.016667);
 }

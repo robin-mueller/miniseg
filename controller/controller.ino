@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "src/Communication/comm.hpp"
+#include "src/communication/comm.hpp"
 #include "src/encoder.hpp"
 #include "src/mpu.hpp"
 
@@ -15,10 +15,29 @@ So the transmit pitch interval must not be faster than that. Additionally it sho
 These exist since the buffer is only asynchronously emptied (that is in parallel to other executing code) in chunks of 64 bytes at maximum on the Arduino Mega.
 Consequently, if those 64 bytes are sent before more bytes are forwarded to the serial transmit hardware buffer, transmit delays occur.
 */
-#define TX_INTERFACE_UPDATE_INTERVAL_MS 100
+#define TX_INTERFACE_UPDATE_INTERVAL_MS 200
 
 Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360) };
 MinSegMPU mpu;
+
+void calibrate_mpu() {
+  // Only acc gyro calibration necessary
+  comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
+  comm.message_transmit_now(F("Please leave the device still on the flat plane."));
+  delay(2000);
+  comm.message_transmit_now(F("Accel Gyro calibration start!"));
+  mpu.calibrateAccelGyro();
+  comm.message_transmit_now(F("Accel Gyro calibration finished!"));
+  comm.message_transmit_now(F("-------------------------"));
+  comm.message_transmit_now(F("    Calibration done!"));
+
+  comm.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
+  comm.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
+  
+  // Adresses issue (https://github.com/hideakitai/MPU9250/issues/88) that biases are not actually forwarded to the sensor after calibration. Do it manually here.
+  mpu.setAccBias(mpu.getAccBiasX(), mpu.getAccBiasY(), mpu.getAccBiasZ());
+  mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
+}
 
 void setup() {
   Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
@@ -104,40 +123,17 @@ void loop() {
       case Communication::TransmitCode::TX_SUCCESS:
         break;
       case Communication::TransmitCode::TX_DOC_OVERFLOW:
-        comm.message_enqueue_for_transmit(F("Transmit Error: TX_DOC_OVERFLOW"));
+        comm.message_transmit_now(F("Transmit Error: TX_DOC_OVERFLOW"));
         break;
-      case Communication::TransmitCode::INSUFFICIENT_TRANSMIT_RATE:
-        comm.message_transmit_now(F("Transmit Error: INSUFFICIENT_TRANSMIT_RATE"));
+      case Communication::TransmitCode::TX_BUFFER_TOO_SMALL_TO_FIT_DATA:
+        comm.message_transmit_now(F("Transmit Error: TX_BUFFER_TOO_SMALL_TO_FIT_DATA"));
         break;
-      case Communication::TransmitCode::PACKET_EXCEEDS_TX_BUFFER_SIZE:
-        comm.message_transmit_now(F("Transmit Error: PACKET_EXCEEDS_TX_BUFFER_SIZE"));
+      case Communication::TransmitCode::TRANSMIT_RATE_TOO_LOW:
+        comm.message_transmit_now(F("Transmit Error: TRANSMIT_RATE_TOO_LOW"));
         break;
     }
   }
 
-  // Deplete transmit buffer as possible without blocking
+  // Deplete transmit buffer without blocking procedurally
   comm.async_transmit();
-}
-
-void calibrate_mpu() {
-  comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
-  comm.message_transmit_now(F("Please leave the device still on the flat plane."));
-  delay(3000);
-  comm.message_transmit_now(F("Accel Gyro calibration start!"));
-  mpu.calibrateAccelGyro();
-  comm.message_transmit_now(F("Accel Gyro calibration finished!"));
-
-  delay(1000);
-
-  comm.message_transmit_now(F("Mag calibration will start in 3sec."));
-  comm.message_transmit_now(F("Please Wave device in a figure eight until done."));
-  delay(3000);
-  comm.message_transmit_now(F("Mag calibration start!"));
-  mpu.calibrateMag();
-  comm.message_transmit_now(F("Mag calibration finished!"));
-  comm.message_transmit_now(F("-------------------------"));
-  comm.message_transmit_now(F("    Calibration done!"));
-
-  comm.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
-  comm.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
 }
