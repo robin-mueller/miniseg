@@ -1,98 +1,156 @@
 import QtQuick
-import QtQuick.Controls 6.2
+import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Configuration
-
 //import "./dummy"
+
 Item {
+    id: root
+
+    property string name: "Value"
+    property int decimals: 2
+    property real realValue: value / Math.pow(10, decimals)
+
+    Text {
+        text: root.name
+        color: Theme.foreground
+        anchors {
+            verticalCenter: root.verticalCenter
+            right: control.left
+            rightMargin: 8
+        }
+    }
+
     SpinBox {
         id: control
 
-        property int decimals: 2
-        property real realValue: value / 100
+        readonly property int buttonWidth: 22
+        readonly property int buttonRadius: 8
+        readonly property string buttonColor: Theme.background
+        readonly property string buttonPressedColor: Theme.dark_foreground
 
-        from: -10 * Math.pow(10, decimals)
-        to: 10 * Math.pow(10, decimals)
-        stepSize: 1 * Math.pow(10, decimals)
+        width: 100
+        height: 25
+        font.pixelSize: 14
+
+        from: -10 * Math.pow(10, root.decimals)
+        to: 10 * Math.pow(10, root.decimals)
+        stepSize: 1
         editable: true
 
         anchors.centerIn: parent
-        width: 208
-        height: 66
 
         validator: DoubleValidator {
             bottom: Math.min(control.from, control.to)
             top: Math.max(control.from, control.to)
         }
 
-        textFromValue: function (value, locale) {
-            return Number(value / Math.pow(10,
-                                           control.decimals)).toLocaleString(
-                        locale, 'f', control.decimals)
+        textFromValue: function (value) {
+            return Number(value / Math.pow(10, root.decimals)).toLocaleString(control.locale, 'f', root.decimals)
         }
 
-        valueFromText: function (text, locale) {
-            return Number.fromLocaleString(locale,
-                                           text) * Math.pow(10,
-                                                            control.decimals)
+        valueFromText: function (text) {
+            return Number.fromLocaleString(control.locale, text) * Math.pow(10, root.decimals)
         }
 
         contentItem: TextInput {
-            z: 2
-            text: control.textFromValue(control.value, control.locale)
+            id: input
 
+            z: 2
+            text: control.textFromValue(control.value)
             font: control.font
-            color: "#21be2b"
-            selectionColor: "#21be2b"
-            selectedTextColor: "#ffffff"
+            color: Theme.background
+            selectionColor: Theme.dark_foreground
+            selectedTextColor: Theme.foreground
             horizontalAlignment: Qt.AlignHCenter
             verticalAlignment: Qt.AlignVCenter
+            anchors {
+                fill: control
+                leftMargin: control.down.indicator.implicitWidth
+                rightMargin: control.up.indicator.implicitWidth
+            }
 
             readOnly: !control.editable
             validator: control.validator
             inputMethodHints: Qt.ImhFormattedNumbersOnly
         }
 
-        up.indicator: Rectangle {
-            x: control.mirrored ? 0 : parent.width - width
-            height: parent.height
-            implicitWidth: 40
-            implicitHeight: 40
-            color: control.up.pressed ? "#e4e4e4" : "#f6f6f6"
-            border.color: enabled ? "#21be2b" : "#bdbebf"
+        down.indicator: Rectangle {
+            x: 0
+            height: control.height
+            implicitWidth: control.buttonWidth
+            color: control.down.pressed ? control.buttonPressedColor : control.buttonColor
+            border.color: Theme.dark_foreground
+            radius: control.buttonRadius
 
-            Text {
-                text: "+"
-                font.pixelSize: control.font.pixelSize * 2
-                color: "#21be2b"
-                anchors.fill: parent
-                fontSizeMode: Text.Fit
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+            Rectangle {
+                height: parent.height
+                color: parent.color
+                anchors {
+                    left: parent.right
+                    leftMargin: -control.buttonRadius
+                    right: parent.right
+                    rightMargin: -control.background.radius
+                }
+            }
+
+            Image {
+                id: downIcon
+                source: "qrc:/image/application/assets/minus.png"
+                visible: false
+                anchors.centerIn: parent
+                height: 10
+                width: 9
+            }
+
+            ColorOverlay {
+                anchors.fill: downIcon
+                source: downIcon
+                color: Theme.foreground
             }
         }
 
-        down.indicator: Rectangle {
-            x: control.mirrored ? parent.width - width : 0
+        up.indicator: Rectangle {
+            x: parent.width - width
             height: parent.height
-            implicitWidth: 40
-            implicitHeight: 40
-            color: control.down.pressed ? "#e4e4e4" : "#f6f6f6"
-            border.color: enabled ? "#21be2b" : "#bdbebf"
+            implicitWidth: control.buttonWidth
+            implicitHeight: control.height
+            color: control.up.pressed ? control.buttonPressedColor : control.buttonColor
+            border.color: Theme.dark_foreground
+            radius: control.buttonRadius
 
-            Text {
-                text: "-"
-                font.pixelSize: control.font.pixelSize * 2
-                color: "#21be2b"
-                anchors.fill: parent
-                fontSizeMode: Text.Fit
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+            Rectangle {
+                height: parent.height
+                color: parent.color
+                anchors {
+                    left: parent.left
+                    leftMargin: -control.background.radius
+                    right: parent.left
+                    rightMargin: -control.buttonRadius
+                }
+            }
+
+            Image {
+                id: upIcon
+                source: "qrc:/image/application/assets/plus.png"
+                visible: false
+                anchors.centerIn: parent
+                height: 10
+                width: 10
+            }
+
+            ColorOverlay {
+                anchors.fill: upIcon
+                source: upIcon
+                color: Theme.foreground
             }
         }
 
         background: Rectangle {
-            implicitWidth: 140
-            border.color: "#bdbebf"
+            z: 1
+            color: Theme.foreground
+            radius: 4
+            anchors.fill: input
         }
     }
 }

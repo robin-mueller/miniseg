@@ -1,8 +1,12 @@
 <RCC>
-    <qresource prefix="/">
-        <file>include/qml/ParameterField.qml</file>
-        <file>include/qml/Parameters.qml</file>
-        <file>include/qml/SetpointSlider.qml</file>
-        <file>include/qml/Header.qml</file>
+    <qresource prefix="/qml">
+        <file>application/qml/ParameterField.qml</file>
+        <file>application/qml/Parameters.qml</file>
+        <file>application/qml/SetpointSlider.qml</file>
+        <file>application/qml/Status.qml</file>
+    </qresource>
+    <qresource prefix="/image">
+        <file>application/assets/minus.png</file>
+        <file>application/assets/plus.png</file>
     </qresource>
 </RCC>

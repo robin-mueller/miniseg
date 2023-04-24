@@ -26,8 +26,8 @@ class QMLWidget(QObject):
         layout.addWidget(self.widget)
         
         
-class HeaderSection(QMLWidget):
-    SOURCE = "qrc:/include/qml/Header.qml"
+class StatusSection(QMLWidget):
+    SOURCE = "qrc:/qml/application/qml/Status.qml"
     controller_switch_state_changed = Signal(bool)
     
     def __init__(self, widget_frame: QFrame):
@@ -45,11 +45,11 @@ class HeaderSection(QMLWidget):
     
 
 class ParameterSection(QMLWidget):
-    SOURCE = "qrc:/include/qml/Parameters.qml"
+    SOURCE = "qrc:/qml/application/qml/Parameters.qml"
 
 
 class SetpointSlider(QMLWidget):
-    SOURCE = "qrc:/include/qml/SetpointSlider.qml"
+    SOURCE = "qrc:/qml/application/qml/SetpointSlider.qml"
     changed = Signal(int)
 
     def __init__(self, widget_frame: QFrame):

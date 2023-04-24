@@ -7,10 +7,7 @@ Item {
     Label {
         text: "Position Setpoint [cm]"
         color: Theme.foreground
-        font {
-            pixelSize: 16
-            bold: true
-        }
+        font.pixelSize: 14
         anchors {
             centerIn: parent
             verticalCenterOffset: -(handle.height / 2 + (parent.height / 2 - handle.height / 2) / 2)
@@ -26,7 +23,7 @@ Item {
         property int majorTickWidth: 4
         property int minorTickWidth: majorTickWidth - 2
         property int majorTickHeight: 16
-        property int minorTickHeight: majorTickHeight - 5
+        property int minorTickHeight: majorTickHeight - 6
         property int majorLabelFontSize: 17
         property int minorLabelFontSize: majorLabelFontSize - 5
         property int labelMargin: handle.height / 2 + (parent.height / 2 - handle.height / 2) / 2
@@ -51,7 +48,7 @@ Item {
                 implicitWidth: major ? tickScale.majorTickWidth : tickScale.minorTickWidth
                 implicitHeight: major ? tickScale.majorTickHeight : tickScale.minorTickHeight
                 radius: 2
-                color: Theme.foreground
+                color: Theme.dark_foreground
                 transform: Translate {
                     x: index * tickScale.pixPerTick
                 }
@@ -77,6 +74,7 @@ Item {
         value: backend.value
         onValueChanged: backend.value = value
 
+        live: false
         anchors.fill: parent
         stepSize: 1
         from: -tickScale.rangeCentiMeter / 2
@@ -90,16 +88,16 @@ Item {
             anchors.centerIn: parent
             width: control.availableWidth - handle.width
             height: 4
-            color: Theme.foreground
-            border.color: Theme.foreground
+            color: Theme.dark_foreground
         }
 
         handle: Rectangle {
             id: handle
 
             implicitWidth: 12
-            implicitHeight: 50
-            radius: 5
+            implicitHeight: 42
+            radius: 4
+            border.color: Theme.border
 
             x: control.leftPadding + control.visualPosition * (control.availableWidth - width)
             y: control.topPadding + control.availableHeight / 2 - height / 2

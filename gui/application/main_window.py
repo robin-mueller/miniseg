@@ -6,7 +6,7 @@ from . import program_uptime
 from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from .concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from .monitoring_window import MonitoringWindow
-from .widget import SetpointSlider, ParameterSection, HeaderSection
+from .widget import SetpointSlider, ParameterSection, StatusSection
 from functools import partial
 from resources.main_window_ui import Ui_MainWindow
 from PySide6.QtCore import QTime
@@ -22,7 +22,7 @@ class MinSegGUI(QMainWindow):
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
         self.ui.console_splitter.setSizes([  # Set initial space distribution beween console and overview plot
-            2 * QGuiApplication.primaryScreen().virtualSize().height(),
+            3 * QGuiApplication.primaryScreen().virtualSize().height(),
             1 * QGuiApplication.primaryScreen().virtualSize().height()]
         )
 
@@ -47,7 +47,7 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
         self.bt_connect_label = QLabel("Connecting ...")
-        self.header_section = HeaderSection(self.ui.header_frame)
+        self.header_section = StatusSection(self.ui.status_frame)
         self.parameter_section = ParameterSection(self.ui.parameter_frame)
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame)
 
