@@ -3,7 +3,7 @@ import seaborn as sns
 import pyqtgraph as pg
 import configuration as config
 
-from application.communication.interface import StampedData
+from .communication.interface import StampedData
 from typing import Callable
 from dataclasses import dataclass
 from collections import UserDict

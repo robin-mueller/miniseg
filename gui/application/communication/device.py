@@ -4,9 +4,9 @@ import warnings
 import select
 import configuration as config
 
-from application import PROGRAM_START_TIMESTAMP, program_uptime
 from bluetooth import discover_devices, BluetoothSocket
-from application.communication.interface import DataInterface, DataInterfaceDefinition, JsonInterfaceReader
+from ..helper import PROGRAM_START_TIMESTAMP, program_uptime
+from .interface import DataInterface, DataInterfaceDefinition, JsonInterfaceReader
 
 INTERFACE_JSON = JsonInterfaceReader(config.JSON_INTERFACE_DEFINITION_PATH)
 

@@ -3,7 +3,7 @@ import qdarktheme
 
 # noinspection PyUnresolvedReferences
 from resources import rc_resources  # Loads Qt resources to become available for PySide6
-from application.main_window import MinSegGUI
+from application import MinSegGUI
 from configuration import THEME
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 from PySide6.QtWidgets import QApplication

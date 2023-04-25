@@ -1,5 +1,13 @@
+import time
+
 from PySide6.QtCore import QObject, QEvent
 from PySide6.QtWidgets import QMenu
+
+PROGRAM_START_TIMESTAMP = time.perf_counter()
+
+
+def program_uptime():
+    return time.perf_counter() - PROGRAM_START_TIMESTAMP
 
 
 class KeepMenuOpen(QObject):

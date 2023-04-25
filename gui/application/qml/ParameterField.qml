@@ -7,17 +7,21 @@ import Configuration
 Item {
     id: root
 
-    property string name: "Value"
+    property string name: "Name"
     property int decimals: 2
     property real realValue: value / Math.pow(10, decimals)
 
+    implicitWidth: childrenRect.width
+    implicitHeight: childrenRect.height
+
     Text {
+        id: nameText
+
         text: root.name
         color: Theme.foreground
         anchors {
             verticalCenter: root.verticalCenter
-            right: control.left
-            rightMargin: 8
+            left: root.left
         }
     }
 
@@ -38,7 +42,11 @@ Item {
         stepSize: 1
         editable: true
 
-        anchors.centerIn: parent
+        anchors {
+            left: nameText.right
+            leftMargin: 8
+            verticalCenter: root.verticalCenter
+        }
 
         validator: DoubleValidator {
             bottom: Math.min(control.from, control.to)

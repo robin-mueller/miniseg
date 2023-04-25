@@ -10,7 +10,7 @@ from .helper import KeepMenuOpen
 from .plotting import MonitoringGraph, GraphDict, CurveLibrary, CurveDefinition, ColouredCurve
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMainWindow, QMenu, QFileDialog
+from PySide6.QtWidgets import QMainWindow, QFileDialog
 from PySide6.QtCore import Qt, QTime
 
 
@@ -43,8 +43,7 @@ class MonitoringWindow(QMainWindow):
         while graph_id in self.graphs:
             graph_id += 1
         graph_title = f"Graph {graph_id + 1}"
-        graph_menu = QMenu(graph_title)
-        self.ui.menuGraphs.insertMenu(self.ui.menuGraphs.actions()[graph_id + 1], graph_menu)
+        graph_menu = self.ui.menuGraphs.addMenu(graph_title)
         graph_menu.installEventFilter(self.keep_menu_open_filter)
         remove_action = graph_menu.addAction("Remove")
         graph_menu.addSection("Curves")

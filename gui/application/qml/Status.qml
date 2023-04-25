@@ -9,6 +9,7 @@ GridLayout {
 
     rows: 3
     columns: 2
+    columnSpacing: 15
     anchors.fill: parent
 
     readonly property int leftStretch: 1
@@ -35,6 +36,22 @@ GridLayout {
         Layout.preferredWidth: grid.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
+
+        readonly property var messages: {
+            "0": "Not Connected",
+            "1": "Connecting ...",
+            "2": "Connected"
+        }
+
+        Text {
+            text: parent.messages[Number(backend.connection_state).toLocaleString()]
+            font.pixelSize: 12
+            color: backend.connection_state === 2 ? Theme.primary : Theme.foreground
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
+        }
     }
 
     Item {
@@ -58,6 +75,22 @@ GridLayout {
         Layout.preferredWidth: grid.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
+
+        readonly property var messages: {
+            "0": "Not Calibrated",
+            "1": "Calibrating ...",
+            "2": "Calibrated"
+        }
+
+        Text {
+            text: parent.messages[Number(backend.calibration_state).toLocaleString()]
+            font.pixelSize: 12
+            color: backend.calibration_state === 2 ? Theme.primary : Theme.foreground
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
+        }
     }
 
     Item {
@@ -92,6 +125,8 @@ GridLayout {
                 left: parent.left
                 verticalCenter: parent.verticalCenter
             }
+            height: indicator.height
+            width: indicator.width
 
             indicator: Rectangle {
                 implicitWidth: 60
@@ -119,6 +154,7 @@ GridLayout {
             color: controller_switch.checked ? Theme.primary : Theme.foreground
             anchors {
                 left: controller_switch.right
+                leftMargin: grid.columnSpacing
                 verticalCenter: parent.verticalCenter
             }
         }

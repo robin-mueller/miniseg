@@ -1,8 +1,8 @@
 import configuration as config
 
-from application.communication.device import BluetoothDevice
-from application.communication.interface import DataInterfaceDefinition, StampedData
-from . import program_uptime
+from .communication.device import BluetoothDevice
+from .communication.interface import DataInterfaceDefinition, StampedData
+from .helper import program_uptime
 from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from .concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from .monitoring_window import MonitoringWindow
@@ -47,9 +47,9 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
         self.bt_connect_label = QLabel("Connecting ...")
-        self.header_section = StatusSection(self.ui.status_frame)
-        self.parameter_section = ParameterSection(self.ui.parameter_frame)
-        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame)
+        self.status_section = StatusSection(self.ui.status_frame, 0, 0, False)
+        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{"A Matrix": ['a1', 'a2', 'a3']}, BMatrix=['b1', 'b2', 'b3'])
+        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
 
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bt_connect)
@@ -57,12 +57,12 @@ class MinSegGUI(QMainWindow):
         self.ui.actionStartCalibration.triggered.connect(self.on_start_calibration)
 
         # Add receive callbacks
-        self.bt_device.rx_data.execute_when_set("calibrated", self.reset_calibration)
+        self.bt_device.rx_data.execute_when_set("calibrated", self.on_calibrated)
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
         # Write to TX interface
         self.setpoint_slider.changed.connect(lambda val: self.bt_device.send(pos_setpoint=val))
-        self.header_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
+        self.status_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
 
         # Curve definitions
         CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, program_uptime())))
@@ -90,6 +90,7 @@ class MinSegGUI(QMainWindow):
         self.ui.statusbar.addWidget(self.bt_connect_progress_bar)
         self.bt_connect_label.show()
         self.bt_connect_progress_bar.show()
+        self.status_section.connection_state = 1
 
         # Connect asynchronoulsy
         self.bt_connect_task.start()
@@ -99,6 +100,7 @@ class MinSegGUI(QMainWindow):
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.statusbar.showMessage("Connection successful!", 3000)
         self.ui.actionDisconnect.setEnabled(True)
+        self.status_section.connection_state = 2
 
         # Start receiving
         self.bt_receive_task.start()
@@ -108,6 +110,7 @@ class MinSegGUI(QMainWindow):
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.actionConnect.setEnabled(True)
         self.ui.statusbar.showMessage(f"Connecting failed - {exception.__class__.__name__}: {str(exception)}", 3000)
+        self.status_section.connection_state = 0
 
     def on_bt_disconnect(self):
         self.bt_receive_task.stop()
@@ -126,13 +129,17 @@ class MinSegGUI(QMainWindow):
 
     def on_start_calibration(self):
         self.bt_device.rx_data["calibrated"] = False
-        self.ui.actionStartCalibration.setEnabled(False)
+        self.status_section.calibration_state = 1
         self.bt_device.send(calibration=True)
+        self.ui.actionStartCalibration.setEnabled(False)
 
-    def reset_calibration(self, calibrated: StampedData):
+    def on_calibrated(self, calibrated: StampedData):
         if calibrated.value is True:
+            self.status_section.calibration_state = 2
             self.bt_device.tx_data["calibration"] = False
             self.ui.actionStartCalibration.setEnabled(True)
+        else:
+            self.status_section.calibration_state = 0
 
     def on_open_monitor(self):
         new_monitor = MonitoringWindow()
