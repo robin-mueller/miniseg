@@ -126,6 +126,7 @@ class MinSegGUI(QMainWindow):
         self.ui.statusbar.showMessage("Disconnected from device!", 3000)
         self.ui.console.clear()
         self.status_section.connection_state = 0
+        self.status_section.calibration_state = 0
 
     def on_bt_received(self, received: bytes):
         if not received:
@@ -135,18 +136,20 @@ class MinSegGUI(QMainWindow):
         self.bt_device.deserialize(received)  # Update RX interface
 
     def on_start_calibration(self):
+        self.status_section.calibration_state = 0
         self.bt_device.send(calibration=True)
-        self.bt_device.rx_data["calibrated"] = False
-        self.status_section.calibration_state = 1
         self.ui.actionStartCalibration.setEnabled(False)
 
     def on_calibrated(self, calibrated: StampedData):
-        if calibrated.value is True:
+        if self.status_section.calibration_state == 0 and calibrated.value is False:
+            self.status_section.calibration_state = 1
+            return
+
+        if self.status_section.calibration_state == 1 and calibrated.value is True:
             self.status_section.calibration_state = 2
             self.bt_device.tx_data["calibration"] = False
             self.ui.actionStartCalibration.setEnabled(True)
-        elif self.status_section.calibration_state != 1:
-            self.status_section.calibration_state = 0
+            return
 
     def on_open_monitor(self):
         new_monitor = MonitoringWindow()
