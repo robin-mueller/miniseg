@@ -6,8 +6,8 @@ import Configuration
 Item {
     id: root
 
-    property string title: "Title"
-    property var names: ["k1", "k2", "k3", "k4"]
+    property string title
+    property var names
 
     Text {
         id: header
@@ -95,11 +95,13 @@ Item {
         Repeater {
             id: repeater
 
-            model: root.names.length
+            model: root.names
 
             ParameterField {
                 Layout.alignment: Qt.AlignCenter
-                name: root.names[index]
+                name: modelData
+                value: backend.value[modelData]
+                onValueChanged: () => {var d = {}; d[name] = value; backend.value = d}
             }
         }
     }

@@ -9,7 +9,8 @@ Item {
 
     property string name: "Name"
     property int decimals: 2
-    property real realValue: value / Math.pow(10, decimals)
+    property real realValue: control.value / Math.pow(10, decimals)
+    property alias value: control.value
 
     implicitWidth: childrenRect.width
     implicitHeight: childrenRect.height

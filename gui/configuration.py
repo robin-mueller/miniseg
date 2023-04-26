@@ -33,7 +33,7 @@ class Theme(QObject):
     def border(self):
         return "#505153"
 
-#    @Property(str, constant=True)
+#    @QMLProperty(str, constant=True)
 #    def secondary(self):
 #        return "#ffe2c2"
 
