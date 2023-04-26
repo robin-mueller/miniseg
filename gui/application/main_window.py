@@ -125,6 +125,7 @@ class MinSegGUI(QMainWindow):
         self.ui.actionDisconnect.setEnabled(False)
         self.ui.statusbar.showMessage("Disconnected from device!", 3000)
         self.ui.console.clear()
+        self.status_section.connection_state = 0
 
     def on_bt_received(self, received: bytes):
         if not received:

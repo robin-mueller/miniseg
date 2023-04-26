@@ -5,7 +5,7 @@
 #include "interface.hpp"
 
 // Comment in/out to change receiving approach. If commented out, data is received by sequential polling inside loop().
-// #define ENABLE_RX_INTERRUPT_POLLING
+#define ENABLE_RX_INTERRUPT_POLLING
 
 class Communication {
 public:

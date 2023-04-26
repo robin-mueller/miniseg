@@ -17,10 +17,10 @@ JsonVariant var5 = doc["parameters"]["K"]["k3"];
 if (!var5.isNull()) this->parameters.K.k3 = var5.as<double>();
 JsonVariant var6 = doc["parameters"]["K"]["k4"];
 if (!var6.isNull()) this->parameters.K.k4 = var6.as<double>();
-JsonVariant var4 = doc["parameters"]["A"]["a1"];
-if (!var4.isNull()) this->parameters.A.a1 = var4.as<double>();
-JsonVariant var5 = doc["parameters"]["A"]["a2"];
-if (!var5.isNull()) this->parameters.A.a2 = var5.as<double>();
+JsonVariant var8 = doc["parameters"]["A"]["a1"];
+if (!var8.isNull()) this->parameters.A.a1 = var8.as<double>();
+JsonVariant var9 = doc["parameters"]["A"]["a2"];
+if (!var9.isNull()) this->parameters.A.a2 = var9.as<double>();
 }
 
 StaticJsonDocument<JSON_DOC_SIZE_TX> TransmitInterface::to_doc() {

@@ -90,7 +90,7 @@ class BluetoothDevice:
                 self._tx_data.update(data)  # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
             if key:
                 data.update(self._tx_data[key])
-            print(data)
+
             # Send data specified in the arguments
             json_data = json.dumps(data, separators=(',', ':'), cls=DataInterface.JSONEncoder).encode()
             packet = self.MSG_START_TOKEN + len(json_data).to_bytes(2, "big") + json_data

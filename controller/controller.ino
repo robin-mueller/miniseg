@@ -21,6 +21,9 @@ Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 
 MinSegMPU mpu;
 
 void calibrate_mpu() {
+  comm.tx_data.calibrated = false;
+  while (comm.async_transmit() > 0) {}
+
   // Only acc gyro calibration necessary
   comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
   comm.message_transmit_now(F("Please leave the device still on the flat plane."));
@@ -33,7 +36,7 @@ void calibrate_mpu() {
 
   comm.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
   comm.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
-  
+
   // Adresses issue (https://github.com/hideakitai/MPU9250/issues/88) that biases are not actually forwarded to the sensor after calibration. Do it manually here.
   mpu.setAccBias(mpu.getAccBiasX(), mpu.getAccBiasY(), mpu.getAccBiasZ());
   mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
@@ -98,7 +101,7 @@ void loop() {
     comm.tx_data.mpu.roll = mpu.getRoll();
     comm.tx_data.mpu.pitch = mpu.getPitch();
     comm.tx_data.mpu.yaw = mpu.getYaw();
-    
+
 
     // Reference controller state
     // double &wheel_pos_rad = tx_data.wheel.pos_rad;
@@ -106,7 +109,6 @@ void loop() {
     // double &tilt_vel_deg_s = ;
 
     if (comm.rx_data.control_state) {
-
     }
 
     // Finish loop

@@ -71,7 +71,7 @@ function CreateInterfaceStruct($interfaceDef)
 }
 function CreateInterfaceStructFromDoc($interfaceDef)
 {
-    function AssignStructMember($val, $accessor, $counter)
+    function AssignStructMember($val, $accessor, [ref]$counter)
     {
         $string = ""
         if ($val.GetType().Name -eq "String")
@@ -80,11 +80,11 @@ function CreateInterfaceStructFromDoc($interfaceDef)
             {
                 # char arrays must be assigned using strlcpy
                 $size = [int]$Matches[1]
-                $string += "JsonVariant var$counter = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$counter.isNull()) strlcpy(this->$accessor, doc[`"$($accessor.Replace('.', '`"][`"') )`"] | `"`", $size);`n"
+                $string += "JsonVariant var$($counter.value) = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$($counter.value).isNull()) strlcpy(this->$accessor, doc[`"$($accessor.Replace('.', '`"][`"') )`"] | `"`", $size);`n"
             }
             else
             {
-                $string = "JsonVariant var$counter = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$counter.isNull()) this->$accessor = var$counter.as<$val>();`n"
+                $string = "JsonVariant var$($counter.value) = doc[`"$($accessor.Replace('.', '`"][`"') )`"];`nif (!var$($counter.value).isNull()) this->$accessor = var$($counter.value).as<$val>();`n"
             }
         }
         elseif ($val.GetType().Name -eq "PSCustomObject")
@@ -92,7 +92,7 @@ function CreateInterfaceStructFromDoc($interfaceDef)
             foreach ($prop in $val.psobject.Properties)
             {
                 $string += AssignStructMember $prop.Value "$accessor.$( $prop.Name )" $counter
-                $counter++
+                $counter.value++
             }
         }
         return $string
@@ -102,7 +102,7 @@ function CreateInterfaceStructFromDoc($interfaceDef)
     $string = ""
     foreach ($prop in $interfaceDef.psobject.Properties)
     {
-        $string += AssignStructMember $prop.Value $prop.Name $counter
+        $string += AssignStructMember $prop.Value $prop.Name ([ref] $counter)
         $counter++
     }
     return $string
