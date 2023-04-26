@@ -4,16 +4,14 @@ from PySide6.QtQml import qmlRegisterSingletonType
 
 HC06_BLUETOOTH_ADDRESS = "98:D3:A1:FD:34:63"
 JSON_INTERFACE_DEFINITION_PATH = Path(__file__).parent.parent / "interface.json"
+DEFAULT_RECORDING_DIR = Path(__file__).parent.parent / "recording"
+PARAMETERS_DIR = Path(__file__).parent.parent / "parameters"
 
 
 class Parameters(QObject):
     @Property(int)
     def refresh_rate_hz(self):
-        return 20
-
-    @Property(str)
-    def default_recording_dir(self):
-        return str(Path(__file__).parent / "recording")
+        return 40
 
 
 class Theme(QObject):
@@ -39,7 +37,7 @@ class Theme(QObject):
 
     @Property(str, constant=True)
     def primary(self):
-        return "#91a9b6"
+        return "#6ec4c4"
 
 
 # noinspection PyTypeChecker

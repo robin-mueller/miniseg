@@ -78,14 +78,21 @@ class BluetoothDevice:
             self._socket = None
             self._connected = False
 
-    def send(self, **kwargs):
+    def send(self, key: str | tuple = None, **data):
+        """
+        Sends data to the device.
+
+        :param key: The key referring to the data stored inside the transmit interface object. Any subordinate data will be sent. That also includes nested data.
+        :param data: Keyword arguments specifying transmit data inline. The transmit interface object will be updated with the values specified before data is sent.
+        """
         if self._connected:
-
-            # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
-            self._tx_data.update(kwargs)
-
-            # Only send the data unknown to the device on the other end of the connection
-            json_data = json.dumps(kwargs, separators=(',', ':')).encode()
+            if data:
+                self._tx_data.update(data)  # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
+            if key:
+                data.update(self._tx_data[key])
+            print(data)
+            # Send data specified in the arguments
+            json_data = json.dumps(data, separators=(',', ':'), cls=DataInterface.JSONEncoder).encode()
             packet = self.MSG_START_TOKEN + len(json_data).to_bytes(2, "big") + json_data
 
             # Send the packet

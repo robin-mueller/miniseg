@@ -1,7 +1,9 @@
+import json
 import configuration as config
 
+from pathlib import Path
 from .communication.device import BluetoothDevice
-from .communication.interface import DataInterfaceDefinition, StampedData
+from .communication.interface import DataInterfaceDefinition, StampedData, DataInterface
 from .helper import program_uptime
 from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from .concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
@@ -11,7 +13,7 @@ from functools import partial
 from resources.main_window_ui import Ui_MainWindow
 from PySide6.QtCore import QTime
 from PySide6.QtGui import QCloseEvent, QGuiApplication
-from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel
+from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel, QFileDialog
 
 
 class MinSegGUI(QMainWindow):
@@ -47,14 +49,17 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
         self.bt_connect_label = QLabel("Connecting ...")
-        self.status_section = StatusSection(self.ui.status_frame)
-        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{"A Matrix": ['a1', 'a2']}, BMatrix=['b1', 'b2', 'b3'])
-        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame)
+        self.status_section = StatusSection(self.ui.status_frame, 0, 0, False)
+        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters"].items()})
+        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
 
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bt_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bt_disconnect)
         self.ui.actionStartCalibration.triggered.connect(self.on_start_calibration)
+        self.ui.actionParamLoad.triggered.connect(self.load_parameters)
+        self.ui.actionParamSaveAs.triggered.connect(self.save_parameters)
+        self.ui.actionParamSend.triggered.connect(lambda: self.bt_device.send("parameters"))
 
         # Add receive callbacks
         self.bt_device.rx_data.execute_when_set("calibrated", self.on_calibrated)
@@ -63,7 +68,7 @@ class MinSegGUI(QMainWindow):
         # TX interface connections
         self.setpoint_slider.value_changed.connect(lambda val: self.bt_device.send(pos_setpoint=val))
         self.status_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
-        self.parameter_section.groups["A Matrix"].value_changed.connect(lambda val: print(val))
+        self.parameter_section.last_change_changed.connect(lambda val: self.bt_device.tx_data["parameters"].update(val))
 
         # Curve definitions
         CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, program_uptime())))
@@ -129,9 +134,9 @@ class MinSegGUI(QMainWindow):
         self.bt_device.deserialize(received)  # Update RX interface
 
     def on_start_calibration(self):
+        self.bt_device.send(calibration=True)
         self.bt_device.rx_data["calibrated"] = False
         self.status_section.calibration_state = 1
-        self.bt_device.send(calibration=True)
         self.ui.actionStartCalibration.setEnabled(False)
 
     def on_calibrated(self, calibrated: StampedData):
@@ -147,6 +152,22 @@ class MinSegGUI(QMainWindow):
         new_monitor.destroyed.connect(lambda: self.monitors.remove(new_monitor))
         self.monitors.append(new_monitor)
         new_monitor.show()
+
+    def load_parameters(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Load Parameters", str(config.PARAMETERS_DIR), "JSON (*.json)")
+        if path:
+            with Path(path).open() as file:
+                parameters = json.load(file)
+            self.parameter_section.loaded = parameters
+
+    def save_parameters(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Save Parameters", str(config.PARAMETERS_DIR), "JSON (*.json)")
+        if path:
+            path = Path(path)
+            if path.suffix != '.json':
+                path += '.json'
+            with path.open('w') as file:
+                json.dump(self.bt_device.tx_data["parameters"], file, cls=DataInterface.JSONEncoder, indent=2)
 
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:

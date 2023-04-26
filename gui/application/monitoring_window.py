@@ -1,11 +1,11 @@
 import itertools
 import pandas as pd
+import configuration as config
 
 from functools import partial
 from collections import UserDict
 from typing import Optional
 from pathlib import Path
-from configuration import PARAMETERS
 from .helper import KeepMenuOpen
 from .plotting import MonitoringGraph, GraphDict, CurveLibrary, CurveDefinition, ColouredCurve
 from resources.monitoring_window_ui import Ui_MonitoringWindow
@@ -86,18 +86,17 @@ class MonitoringWindow(QMainWindow):
         self.ui.actionStopRecording.setEnabled(False)
 
         # Save recording
-        rec_dir = Path(PARAMETERS.default_recording_dir)
+        rec_dir = config.DEFAULT_RECORDING_DIR
         if not rec_dir.exists():
             rec_dir.mkdir()
         path, _ = QFileDialog.getSaveFileName(self, "Save Monitoring Data", str(rec_dir), "CSV (*.csv)")
+        if path:
+            df = []
+            for graph in self.graphs.values():
+                for curve_def, curve in graph.curves_dict.items():
+                    df.append(pd.DataFrame(curve.recording_array.T, columns=pd.MultiIndex.from_product([[graph.title], [curve_def.label], ['Time', 'Value']])))
+            df = pd.concat(df, axis=1)
 
-        df = []
-        for graph in self.graphs.values():
-            for curve_def, curve in graph.curves_dict.items():
-                df.append(pd.DataFrame(curve.recording_array.T, columns=pd.MultiIndex.from_product([[graph.title], [curve_def.label], ['Time', 'Value']])))
-        df = pd.concat(df, axis=1)
-
-        if path != '':
             if Path(path).suffix != '.csv':
                 path += '.csv'
             df.to_csv(path)

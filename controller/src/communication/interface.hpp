@@ -5,13 +5,25 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 63
+#define JSON_DOC_SIZE_RX 168
 #define JSON_DOC_SIZE_TX 184
 
 struct ReceiveInterface {
 bool calibration;
 bool control_state;
 double pos_setpoint;
+struct {
+struct {
+double k1;
+double k2;
+double k3;
+double k4;
+} K;
+struct {
+double a1;
+double a2;
+} A;
+} parameters;
 
 void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
 };

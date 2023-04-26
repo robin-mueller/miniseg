@@ -8,17 +8,21 @@ Item {
     id: root
 
     property string name: "Name"
+    property real from: -99.99
+    property real to: 99.99
     property int decimals: 2
-    property real realValue: control.value / Math.pow(10, decimals)
-    property alias value: control.value
+    property alias value: control.value  // Very important to use alias here since introducing another property will lead to binding conflicts
 
     implicitWidth: childrenRect.width
     implicitHeight: childrenRect.height
+
+    readonly property var locale: Qt.locale("de_DE")
 
     Text {
         id: nameText
 
         text: root.name
+        font.pixelSize: 14
         color: Theme.foreground
         anchors {
             verticalCenter: root.verticalCenter
@@ -29,17 +33,16 @@ Item {
     SpinBox {
         id: control
 
-        readonly property int buttonWidth: 22
+        readonly property int buttonWidth: 20
         readonly property int buttonRadius: 8
         readonly property string buttonColor: Theme.background
         readonly property string buttonPressedColor: Theme.dark_foreground
 
-        width: 100
+        width: 90
         height: 25
         font.pixelSize: 14
-
-        from: -10 * Math.pow(10, root.decimals)
-        to: 10 * Math.pow(10, root.decimals)
+        from: root.from * Math.pow(10, root.decimals)
+        to: root.to * Math.pow(10, root.decimals)
         stepSize: 1
         editable: true
 
@@ -52,14 +55,15 @@ Item {
         validator: DoubleValidator {
             bottom: Math.min(control.from, control.to)
             top: Math.max(control.from, control.to)
+            locale: root.locale
         }
 
         textFromValue: function (value) {
-            return Number(value / Math.pow(10, root.decimals)).toLocaleString(control.locale, 'f', root.decimals)
+            return Number(value / Math.pow(10, root.decimals)).toLocaleString(root.locale, 'f', root.decimals)
         }
 
         valueFromText: function (text) {
-            return Number.fromLocaleString(control.locale, text) * Math.pow(10, root.decimals)
+            return Number.fromLocaleString(root.locale, text) * Math.pow(10, root.decimals)
         }
 
         contentItem: TextInput {
@@ -108,8 +112,8 @@ Item {
                 source: "qrc:/image/application/assets/minus.png"
                 visible: false
                 anchors.centerIn: parent
-                height: 10
-                width: 9
+                height: 8
+                width: 7
             }
 
             ColorOverlay {
@@ -144,8 +148,8 @@ Item {
                 source: "qrc:/image/application/assets/plus.png"
                 visible: false
                 anchors.centerIn: parent
-                height: 10
-                width: 10
+                height: 8
+                width: 8
             }
 
             ColorOverlay {

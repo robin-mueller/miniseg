@@ -20,7 +20,7 @@ class CurveDefinition:
     - get_func: Getter function of the respective value.
     """
     label: str
-    value_getter: Callable[[], StampedData]  # Has to return a tuple of value and timestamp in this order
+    get_data: Callable[[], StampedData]  # Has to return a tuple of value and timestamp in this order
 
 
 @dataclass
@@ -217,7 +217,8 @@ class MonitoringGraph(pg.PlotItem):
 
     def _update(self):
         for curve_def, time_curve in self._curves_dict.items():
-            time_curve.append_data(*curve_def.value_getter())
+            data = curve_def.get_data()
+            time_curve.append_data(data.value, data.timestamp)
 
     def start(self, interval_hz: int = config.PARAMETERS.refresh_rate_hz):
         self.timer.start(round(1000 / interval_hz))

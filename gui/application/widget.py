@@ -1,5 +1,7 @@
+from typing import Literal
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout
-from .qml.pybackend import QMLWidgetBackend, QMLProperty
+from .qml.pybackend import QMLWidgetBackend, QMLProperty, QMLPropertyMeta
         
         
 class StatusSection(QMLWidgetBackend):
@@ -9,34 +11,33 @@ class StatusSection(QMLWidgetBackend):
     calibration_state = QMLProperty(int)
     controller_switch_state = QMLProperty(bool)
     
-    def __init__(self, widget_frame: QFrame):
+    def __init__(self, widget_frame: QFrame, connection_state: Literal[0, 1, 2], calibration_state: Literal[0, 1, 2], controller_switch_state: bool):
         super().__init__(widget_frame, self.SOURCE)
-        self.connection_state = 0
-        self.calibration_state = 0
-        self.controller_switch_state = False
+        self.connection_state = connection_state
+        self.calibration_state = calibration_state
+        self.controller_switch_state = controller_switch_state
 
 
-class ParameterGroup(QMLWidgetBackend):
+class ParameterSection(QObject, metaclass=QMLPropertyMeta):
     SOURCE = "qrc:/qml/application/qml/Parameters.qml"
 
-    value = QMLProperty(dict)
+    # Two signals are used to respect the Qt Quick Property uni-directional implementation.
+    loaded = QMLProperty(dict)  # Outgoing
+    last_change = QMLProperty(dict)  # Incoming
 
-    def __init__(self, widget_frame: QFrame, title: str, names: list[str], initial: dict[str, float]):
-        super().__init__(widget_frame, self.SOURCE)
-        self.widget.rootObject().setProperty("title", title)
-        self.widget.rootObject().setProperty("names", names)
-        self.value = initial
-
-
-class ParameterSection:
-    def __init__(self, widget_frame: QFrame, **parameters: list[str]):
+    def __init__(self, widget_frame: QFrame, **available_parameters: list[str]):
+        super().__init__()
         self.groups = {}
         layout = QHBoxLayout(widget_frame)
-        layout.setContentsMargins(0, 0, 0, 0)
-        for key, names in parameters.items():
+        layout.setContentsMargins(0, 0, 18, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        layout.setSpacing(25)
+        for key, names in available_parameters.items():
             frame = QFrame(widget_frame)
             frame.setFrameShape(QFrame.NoFrame)
-            widget = ParameterGroup(frame, key, names, {'a1': 100})
+            widget = QMLWidgetBackend.create(frame, self.SOURCE, self, True)
+            widget.rootObject().setProperty("title", key)
+            widget.rootObject().setProperty("names", names)
             self.groups[key] = widget
             layout.addWidget(frame)
 
@@ -45,7 +46,7 @@ class SetpointSlider(QMLWidgetBackend):
     SOURCE = "qrc:/qml/application/qml/SetpointSlider.qml"
     value = QMLProperty(int)
 
-    def __init__(self, widget_frame: QFrame):
+    def __init__(self, widget_frame: QFrame, value: int):
         super().__init__(widget_frame, self.SOURCE)
-        self.value = 0
+        self.value = value
         

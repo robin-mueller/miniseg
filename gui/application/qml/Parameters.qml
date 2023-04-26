@@ -6,8 +6,11 @@ import Configuration
 Item {
     id: root
 
-    property string title
-    property var names
+    property string title: "Title"
+    property var names: ["a", "b"]
+
+    height: childrenRect.height
+    width: childrenRect.width
 
     Text {
         id: header
@@ -17,7 +20,10 @@ Item {
         font.bold: true
         font.italic: true
         color: Theme.foreground
-        anchors.left: fields.left
+        anchors {
+            bottom: bracket.top
+            left: fields.left
+        }
     }
 
     Rectangle {
@@ -31,10 +37,10 @@ Item {
 
         radius: 18
         anchors {
-            top: header.bottom
-            bottom: fields.bottom
-            left: fields.left
-            leftMargin: -2
+            top: fields.top
+            topMargin: -fields.spacing
+            bottom: root.bottom
+            left: root.left
             right: fields.right
             rightMargin: -12
         }
@@ -84,12 +90,13 @@ Item {
 
     ColumnLayout {
         id: fields
+        spacing: 12
 
         anchors {
-            top: header.bottom
-            topMargin: 5
             bottom: root.bottom
-            horizontalCenter: root.horizontalCenter
+            bottomMargin: spacing
+            left: root.left
+            leftMargin: 4
         }
 
         Repeater {
@@ -100,8 +107,9 @@ Item {
             ParameterField {
                 Layout.alignment: Qt.AlignCenter
                 name: modelData
-                value: backend.value[modelData]
-                onValueChanged: () => {var d = {}; d[name] = value; backend.value = d}
+
+                value: backend.loaded[root.title][name] * Math.pow(10, decimals)
+                onValueChanged: () => {var d = {}; d[root.title] = {}; d[root.title][name] = value / Math.pow(10, decimals); backend.last_change = d}
             }
         }
     }

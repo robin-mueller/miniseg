@@ -1,12 +1,6 @@
-from functools import wraps
 from PySide6.QtCore import Qt, QObject, Property, Signal
 from PySide6.QtQuickWidgets import QQuickWidget
 from PySide6.QtWidgets import QFrame, QVBoxLayout
-
-REPLACEMENT_TYPES: dict[type, str] = {
-    list: 'QVariantList',
-    dict: 'QVariantMap'
-}
 
 
 class QMLPropertyMeta(type(QObject)):
@@ -16,6 +10,7 @@ class QMLPropertyMeta(type(QObject)):
     Using this metaclass the signals as well as getters and setters are defined automatically. For this purpose, the QMLProperty must be used as a replacement of PySide6.QtCore.Property.
 
     \t**Important Note**:\n
+    This metaclass must only be used in classes that are inheriting from PySide6.QtCore.QObject.
     A dynamically created **signal is named according to the QMLProperty** object name **followed by '_changed'**.
     They can be connected to exactly like in the official approach. The only caveat is that attribute/type hints of IDEs will not work, since they are defined dynamically.
     """
@@ -26,8 +21,7 @@ class QMLPropertyMeta(type(QObject)):
             if not isinstance(attr, QMLProperty):
                 continue
 
-            replacement_type = REPLACEMENT_TYPES.get(attr.type_, attr.type_)
-            notifier = Signal(replacement_type)
+            notifier = Signal(attr.type_)
             attrs[f'{key}_changed'] = notifier
             attrs[key] = QMLPropertyInstace(type_=attr.type_, name=key, notifier=notifier)
 
@@ -60,7 +54,7 @@ class QMLPropertyInstace(Property):
     """
 
     def __init__(self, type_: type, name: str, notifier: Signal):
-        super().__init__(REPLACEMENT_TYPES.get(type_, type_), self._getter, self._setter, notify=notifier)
+        super().__init__(type_, self._getter, self._setter, notify=notifier)
         self._value = type_()
         self._signal_attr_name = f'{name}_changed'
 
@@ -72,74 +66,14 @@ class QMLPropertyInstace(Property):
             raise TypeError(f"Current value type is {type(self._value)}, but tried to set value of type {type(value)}. The initial type must be respected!")
         signal: Signal = getattr(obj, self._signal_attr_name)
 
-        # Account for mutable objects. Make sure to make them notifying in case of inplace changes.
-        set_type = type(value)
-        if set_type in {list, dict} and type(self._value) is set_type:
-            self._value = make_notifying(self._value, signal)
-
-        if isinstance(value, dict):
-            self._value.update(value)
-        else:
-            self._value = value
-            signal.emit(value)
-
-
-class MakeObjectNotifying:
-    """
-    Adds notifying signals to lists and dictionaries which are emitted on inplace changes.
-    Creates the modified classes just once, on initialization.
-    """
-    change_methods = {
-        list: ['__delitem__', '__iadd__', '__imul__', '__setitem__', 'append',
-               'extend', 'insert', 'pop', 'remove', 'reverse', 'sort'],
-        dict: ['__delitem__', '__ior__', '__setitem__', 'clear', 'pop',
-               'popitem', 'setdefault', 'update']
-    }
-
-    def __init__(self):
-        if not hasattr(dict, '__ior__'):
-            # Dictionaries don't have | operator in Python < 3.9.
-            self.change_methods[dict].remove('__ior__')
-        self.notified_class = {type_: self.make_notified_class(type_) for type_ in [list, dict]}
-
-    def __call__(self, obj: list | dict, signal: Signal):
-        """
-        Returns a notifying version of the supplied list or dict.
-
-        :param obj: The list or dict object to be transformed to its notifying version.
-        :param signal: The signal to be emitted on any inplace changes of obj.
-        :return: The notifying version of obj.
-        """
-        notified_class = self.notified_class[type(obj)]
-        notified_object = notified_class(obj)
-        notified_object.signal = signal  # Add the signal to the instance
-        return notified_object
-
-    @classmethod
-    def make_notified_class(cls, super_class):
-        notified_class = type(f'notified_{super_class.__name__}', (super_class,), {})
-        for method_name in cls.change_methods[super_class]:
-            original_method = getattr(notified_class, method_name)
-            notified_method = cls.make_notified_method(original_method, super_class)
-            setattr(notified_class, method_name, notified_method)
-        return notified_class
-
-    @staticmethod
-    def make_notified_method(method, super_class):
-        @wraps(method)
-        def notified_method(self, *args, **kwargs):
-            result = getattr(super_class, method.__name__)(self, *args, **kwargs)
-            self.signal.emit(self)
-            return result
-
-        return notified_method
-
-
-make_notifying = MakeObjectNotifying()
+        # --> Notifying objects are not necessary in my implementation, since the property value variable is moved inside the QMLPropertyInstace object thus not accessible anyways!
+        # self._value = make_notifying(value, signal) if type(value) in [list, dict] else value
+        self._value = value
+        signal.emit(value)
 
 
 class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
-    def __init__(self, widget_frame: QFrame, source: str):
+    def __init__(self, parent_frame: QFrame, source: str, size_view_to_root_object=False):
         """
         Helper class to initialize quick widget objects from QML file.
         It incorporates the QMLPropertyMeta metaclass that simplifies the interconnection of QML and Python properties.
@@ -151,17 +85,23 @@ class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
         Make sure that the super().__init__() call is made before the QMLProperty objects are accessed, otherwise the programme will crash.
         This is due to the requirement that QObject has to be initialized before any instances or children of PySide6.QtCore.Property are called.
 
-        :param widget_frame: The frame that the referred quick widget centers in.
+        :param parent_frame: The frame that the referred quick widget centers in.
         :param source: The QML source file path.
+        :param size_view_to_root_object: If true resize Mode of QQuickWidget is set to QQuickWidget.SizeViewToRootObject else to QQuickWidget.SizeRootObjectToView.
         """
         super().__init__()
-        self.widget = QQuickWidget(widget_frame)
-        self.widget.rootContext().setContextProperty("backend", self)
-        self.widget.setSource(source)
-        self.widget.setResizeMode(QQuickWidget.SizeRootObjectToView)
-        self.widget.setAttribute(Qt.WA_AlwaysStackOnTop)
-        self.widget.setAttribute(Qt.WA_TranslucentBackground)
-        self.widget.setClearColor(Qt.transparent)
-        layout = QVBoxLayout(widget_frame)
+        self.widget = self.create(parent_frame, source, self, size_view_to_root_object)
+
+    @staticmethod
+    def create(parent_frame: QFrame, source: str, backend: QObject, size_view_to_root_object=False):
+        widget = QQuickWidget(parent_frame)
+        widget.rootContext().setContextProperty("backend", backend)
+        widget.setSource(source)
+        widget.setResizeMode(QQuickWidget.SizeViewToRootObject if size_view_to_root_object else QQuickWidget.SizeRootObjectToView)
+        widget.setAttribute(Qt.WA_AlwaysStackOnTop)
+        widget.setAttribute(Qt.WA_TranslucentBackground)
+        widget.setClearColor(Qt.transparent)
+        layout = QVBoxLayout(parent_frame)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.widget)
+        layout.addWidget(widget)
+        return widget

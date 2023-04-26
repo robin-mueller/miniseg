@@ -1,10 +1,28 @@
 import re
 import json
 
+from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
 from collections import UserDict
-from typing import NamedTuple, Callable, TypeVar
+from typing import Callable, TypeVar
+
+
+class ConversionError(Exception):
+    pass
+
+
+class UnmatchedKeyError(Exception):
+    def __init__(self, key: str, available_keys: list | dict | UserDict):
+        super().__init__(f"Key '{key}' has no match with the specified interface keys {list(available_keys)}.")
+
+
+class SetItemNotAllowedError(Exception):
+    def __init__(self, key: str):
+        super().__init__(
+            f"Key '{key}' doesn't point to a value, but rather to a nested instance of {DataInterface}. "
+            f"Calling __setitem__() is only allowed for a key on the lowest level, hence only for keys that point to values. "
+            f"Otherwise protected {DataInterface.__name__} objects would be overwritten!")
 
 
 class JsonInterfaceReader:
@@ -49,8 +67,11 @@ class DataInterfaceDefinition(UserDict):
     def __init__(self, *members: tuple[str, type], **kw_members):
         super().__init__({name: t for name, t in members}, **kw_members)
 
-    def __getitem__(self: DataInterfaceDefinitionType, item) -> DataInterfaceDefinitionType:
-        return super().__getitem__(item)
+    def __getitem__(self: DataInterfaceDefinitionType, key) -> DataInterfaceDefinitionType:
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            raise UnmatchedKeyError(key, self) from None
 
     def __setitem__(self, key, val):
         if not isinstance(key, str):
@@ -67,7 +88,8 @@ class DataInterfaceDefinition(UserDict):
             raise TypeError(f"val must be a type, string or dict but provided was {type(val)}.")
 
 
-class StampedData(NamedTuple):
+@dataclass(frozen=True, eq=True)
+class StampedData:
     value: any
     timestamp: float
 
@@ -88,20 +110,6 @@ class DataInterface(UserDict):
     CONVERSION_WHITELIST = {
         int: [float]
     }
-
-    class ConversionError(Exception):
-        pass
-
-    class UnmatchedKeyError(Exception):
-        def __init__(self, key: str, available_keys: list | dict | UserDict):
-            super().__init__(f"Key '{key}' has no match with the specified interface keys {list(available_keys)}.")
-
-    class SetItemNotAllowedError(Exception):
-        def __init__(self, key: str):
-            super().__init__(
-                f"Key '{key}' doesn't point to a value, but rather to a nested instance of {DataInterface}. "
-                f"Calling __setitem__() is only allowed for a key on the lowest level, hence only for keys that point to values. "
-                f"Otherwise protected {DataInterface.__name__} objects would be overwritten!")
 
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -140,7 +148,7 @@ class DataInterface(UserDict):
         if key in self.keys():
             self._setitem_callbacks[key] = callback
         else:
-            raise self.UnmatchedKeyError(key, self)
+            raise UnmatchedKeyError(key, self)
 
     def __getitem__(self: DataInterfaceType, key: str | tuple) -> StampedData | DataInterfaceType:
         """
@@ -172,7 +180,7 @@ class DataInterface(UserDict):
         with self._access_lock:
             if isinstance(key, str):  # If dict is accessed using a single key
                 if key not in self.keys():
-                    raise self.UnmatchedKeyError(key, self)
+                    raise UnmatchedKeyError(key, self)
                 if isinstance(self.__getitem__(key), DataInterface):
                     if isinstance(value, dict):
                         # Parse dict and try to assign values recursively
@@ -180,7 +188,7 @@ class DataInterface(UserDict):
                             self.__getitem__(key).__setitem__(k, v)
                         return
                     else:
-                        raise self.SetItemNotAllowedError(key)
+                        raise SetItemNotAllowedError(key)
 
                 if not isinstance(value, StampedData):
                     value = StampedData(value, self._stamper())  # Add timestamp if not already given
@@ -188,12 +196,12 @@ class DataInterface(UserDict):
                 defined_type = self._interface_def[key]
                 set_type = type(value.value)
                 if set_type != defined_type and defined_type not in self.CONVERSION_WHITELIST.get(set_type, []):
-                    raise self.ConversionError(f"Type of {value.value=} is {type(value.value)} but defined was {defined_type}. "
-                                               f"Interface values must be loyal to their types defined at initialization.")
+                    raise ConversionError(f"Type of {value.value=} is {type(value.value)} but defined was {defined_type}. "
+                                          f"Interface values must be loyal to their types defined at initialization.")
                 try:
                     converted_val = defined_type(value.value)
                 except ValueError:
-                    raise self.ConversionError(f"Could no convert {value.value=} of type {type(value.value)} for key '{key}' to {self._interface_def[key]}.")
+                    raise ConversionError(f"Could no convert {value.value=} of type {type(value.value)} for key '{key}' to {self._interface_def[key]}.")
                 else:
                     super().__setitem__(key, StampedData(converted_val, value.timestamp))
                     if key in self._setitem_callbacks.keys():
