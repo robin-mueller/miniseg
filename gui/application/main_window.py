@@ -145,7 +145,7 @@ class MinSegGUI(QMainWindow):
             self.status_section.calibration_state = 2
             self.bt_device.tx_data["calibration"] = False
             self.ui.actionStartCalibration.setEnabled(True)
-        else:
+        elif self.status_section.calibration_state != 1:
             self.status_section.calibration_state = 0
 
     def on_open_monitor(self):

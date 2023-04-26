@@ -22,6 +22,7 @@ MinSegMPU mpu;
 
 void calibrate_mpu() {
   comm.tx_data.calibrated = false;
+  comm.enqueue_for_transmit(comm.tx_data.to_doc());
   while (comm.async_transmit() > 0) {}
 
   // Only acc gyro calibration necessary
