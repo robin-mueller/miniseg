@@ -34,15 +34,14 @@
     "control_state": "bool",
     "pos_setpoint": "double",
     "parameters": {
+      "General": {
+        "h": "double"
+      },
       "K": {
         "k1": "double",
         "k2": "double",
         "k3": "double",
         "k4": "double"
-      },
-      "A": {
-        "a1": "double",
-        "a2": "double"
       }
     }
   }

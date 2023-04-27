@@ -9,18 +9,16 @@ JsonVariant var1 = doc["control_state"];
 if (!var1.isNull()) this->control_state = var1.as<bool>();
 JsonVariant var2 = doc["pos_setpoint"];
 if (!var2.isNull()) this->pos_setpoint = var2.as<double>();
-JsonVariant var3 = doc["parameters"]["K"]["k1"];
-if (!var3.isNull()) this->parameters.K.k1 = var3.as<double>();
-JsonVariant var4 = doc["parameters"]["K"]["k2"];
-if (!var4.isNull()) this->parameters.K.k2 = var4.as<double>();
-JsonVariant var5 = doc["parameters"]["K"]["k3"];
-if (!var5.isNull()) this->parameters.K.k3 = var5.as<double>();
-JsonVariant var6 = doc["parameters"]["K"]["k4"];
-if (!var6.isNull()) this->parameters.K.k4 = var6.as<double>();
-JsonVariant var8 = doc["parameters"]["A"]["a1"];
-if (!var8.isNull()) this->parameters.A.a1 = var8.as<double>();
-JsonVariant var9 = doc["parameters"]["A"]["a2"];
-if (!var9.isNull()) this->parameters.A.a2 = var9.as<double>();
+JsonVariant var3 = doc["parameters"]["General"]["h"];
+if (!var3.isNull()) this->parameters.General.h = var3.as<double>();
+JsonVariant var5 = doc["parameters"]["K"]["k1"];
+if (!var5.isNull()) this->parameters.K.k1 = var5.as<double>();
+JsonVariant var6 = doc["parameters"]["K"]["k2"];
+if (!var6.isNull()) this->parameters.K.k2 = var6.as<double>();
+JsonVariant var7 = doc["parameters"]["K"]["k3"];
+if (!var7.isNull()) this->parameters.K.k3 = var7.as<double>();
+JsonVariant var8 = doc["parameters"]["K"]["k4"];
+if (!var8.isNull()) this->parameters.K.k4 = var8.as<double>();
 }
 
 StaticJsonDocument<JSON_DOC_SIZE_TX> TransmitInterface::to_doc() {

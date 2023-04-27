@@ -3,9 +3,6 @@
 #include "src/encoder.hpp"
 #include "src/mpu.hpp"
 
-// CONTROLLER_UPDATE_INTERVAL_MS determines the frequency of sensor readings and actuation changes.
-#define CONTROLLER_UPDATE_INTERVAL_MS 10
-
 /* 
 TX_INTERFACE_UPDATE_INTERVAL_MS determines the frequency of appending data from the tx interface to the transmit buffer. This value can not be chosen arbitrarily, due to serial baud rate limitations.
 According to this table (https://lucidar.me/en/serialib/most-used-baud-rates-table/) using a baud rate of 115200 serial data can be transmitted at a real byte rate of 86.806 µs per byte.
@@ -81,7 +78,7 @@ void loop() {
   bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible to keep up with the configured sensor sample rate
 
   static uint32_t control_cycle_start_ms = millis();
-  if (new_mpu_data && millis() > control_cycle_start_ms + CONTROLLER_UPDATE_INTERVAL_MS) {
+  if (new_mpu_data && millis() > control_cycle_start_ms + comm.rx_data.parameters.General.h) {
     control_cycle_start_ms = millis();
 
     // Initialize tx interface with sensor readings
@@ -110,6 +107,7 @@ void loop() {
     // double &tilt_vel_deg_s = ;
 
     if (comm.rx_data.control_state) {
+      
     }
 
     // Finish loop
