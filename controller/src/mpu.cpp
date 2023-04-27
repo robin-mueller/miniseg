@@ -1,7 +1,8 @@
+#include "Arduino.h"
 #include "mpu.hpp"
 
 float get_tilt_angle_from_euler(MPU9250 *mpu) {
-  return mpu->getEulerX();
+  return mpu->getEulerX() * DEG_TO_RAD + HALF_PI;
 }
 
 float get_tilt_angle_from_acc(MPU9250 *mpu) {
@@ -9,11 +10,11 @@ float get_tilt_angle_from_acc(MPU9250 *mpu) {
 }
 
 float get_tilt_vel(MPU9250 *mpu) {
-  return mpu->getGyroX();
+  return mpu->getGyroX() * DEG_TO_RAD;
 }
 
-MPUMeasurement::MPUMeasurement(MPU9250 *mpu, float (*getter)(MPU9250 *), double transformation, uint32_t freq_hz)
-  : Sensor(transformation, freq_hz), mpu(mpu), getter(getter) {}
+MPUMeasurement::MPUMeasurement(MPU9250 *mpu, float (*getter)(MPU9250 *), uint32_t freq_hz)
+  : Sensor(freq_hz), mpu(mpu), getter(getter) {}
 
 double MPUMeasurement::get_value() {
   return getter(mpu);
@@ -21,9 +22,9 @@ double MPUMeasurement::get_value() {
 
 MinSegMPU::MinSegMPU()
   : MPU9250(),
-    tilt_angle_from_euler_deg{ this, &get_tilt_angle_from_euler },
-    tilt_angle_from_acc_deg{ this, &get_tilt_angle_from_acc, 360 / (2 * PI) },
-    tilt_vel_deg_s{ this, &get_tilt_vel } {}
+    tilt_angle_from_euler_rad{ this, &get_tilt_angle_from_euler },
+    tilt_angle_from_acc_rad{ this, &get_tilt_angle_from_acc },
+    tilt_vel_rad_s{ this, &get_tilt_vel } {}
 
 void MinSegMPU::setup() {
   Wire.begin();

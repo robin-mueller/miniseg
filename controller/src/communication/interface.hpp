@@ -5,8 +5,8 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 162
-#define JSON_DOC_SIZE_TX 184
+#define JSON_DOC_SIZE_RX 165
+#define JSON_DOC_SIZE_TX 208
 
 struct ReceiveInterface {
 bool calibration;
@@ -14,7 +14,7 @@ bool control_state;
 double pos_setpoint;
 struct {
 struct {
-double h;
+uint16_t h_ms;
 } General;
 struct {
 double k1;
@@ -36,12 +36,12 @@ struct {
 struct {
 double from_euler;
 double from_acc;
-} angle_deg;
+} angle_rad;
 struct {
 double from_euler;
 double from_acc;
-} angle_deriv_deg_s;
-double vel_deg_s;
+} angle_deriv_rad_s;
+double vel_rad_s;
 } tilt;
 struct {
 double gyroX;
@@ -54,8 +54,12 @@ double roll;
 double pitch;
 double yaw;
 } mpu;
+struct {
+uint32_t cycle_ms;
+double u;
+int16_t motor;
+} control;
 bool calibrated;
-uint32_t loop_time_us;
 
 StaticJsonDocument<JSON_DOC_SIZE_TX> to_doc();
 };

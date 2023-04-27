@@ -18,14 +18,14 @@ Communication::Communication() {
 void Communication::setup() {
 #ifdef ENABLE_RX_INTERRUPT_POLLING
   /*
-  Set up timed interrupt for reading the hardware serial receive buffer (64 bytes) using timer/counter3 which is free to use on Arduino Mega.
+  Set up timed interrupt for reading the hardware serial receive buffer (64 bytes) using timer/counter4 which is free to use on the MinSeg board.
   The buffer is estimated to be full every 64 (Buffer size) * 86.806 µs (Real byte rate at 115200 baud rate) ~= 5 ms (Conservatively floored).
   So the timer must trigger the buffer read interrupt routine faster than that.
   */
-  TCCR3A = 0;
-  TCCR3B = 0;
-  TCCR3B |= (1 << WGM32);               // Set CTC mode and clear counter on match with OCR3A.
-  TCCR3B |= (1 << CS32) | (1 << CS30);  // At a clock speed of 16 MHz (Arduino Mega 2560) use prescale factor 1024 for counter increment every 64 µs
+  TCCR4A = 0;
+  TCCR4B = 0;
+  TCCR4B |= (1 << WGM42);               // Set CTC mode and clear counter on match with OCR4A.
+  TCCR4B |= (1 << CS42) | (1 << CS40);  // At a clock speed of 16 MHz (Arduino Mega 2560) use prescale factor 1024 for counter increment every 64 µs
   enable_rx_serial_buffer_read_interrupt();
 
   /* Output Compare Register A has to be set to a value lower than 5 ms (Hardware buffer full rate) / 64 µs (Counter increment rate) = 78.125.
@@ -33,10 +33,10 @@ void Communication::setup() {
   However, high frequency interrupts can cause problematic delays in the actual control loop.
   OCR3A is a 16 bit register. Accessing it requires to temporarily disable interrupts.
   Choosing e.g. 78 here results in reading the buffer when it is filled with 78 (Output Compare Register value) * 64 µs (Counter increment rate) / 86.806 µs (Real byte rate at 115200 baud rate) ~= 57.5 bytes !< 64 (Buffer size)
-  Experiments suggest, that more frequent interrupting results a higher receive success rate.
+  Experiments suggest, that more frequent interrupting results in a higher receive success rate.
   */
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    OCR3A = (uint16_t)20;  // This value should be bewteen 1 and 78 when using prescale factor 1024
+    OCR4A = (uint16_t)10;  // This value should be bewteen 1 and 78 when using prescale factor 1024
   }
 #endif
 
@@ -191,7 +191,7 @@ Communication::TransmitCode Communication::enqueue_for_transmit(const JsonDocume
     return TransmitCode::TX_SUCCESS;
   }
   if (3 + measureJson(tx_doc) > TX_BUFFER_SIZE) return TransmitCode::TX_BUFFER_TOO_SMALL_TO_FIT_DATA;  // This occurs if the data is too big to fit in the transmit buffer
-  return TransmitCode::TRANSMIT_RATE_TOO_LOW; // This occurs if the buffer cannot be depleted faster than new data is added. The buffer would overflow if the recent packet would be added, so it is discarded.
+  return TransmitCode::TRANSMIT_RATE_TOO_LOW;                                                          // This occurs if the buffer cannot be depleted faster than new data is added. The buffer would overflow if the recent packet would be added, so it is discarded.
 }
 
 // Forwards bytes from the transmit buffer to the hardware buffer that sends out serial data.
@@ -275,15 +275,15 @@ void Communication::message_clear() {
 // ----------------------- RX Serial Buffer Read Interrupt Handling ------------------------
 
 void Communication::enable_rx_serial_buffer_read_interrupt() {
-  TIMSK3 = 0;
-  TIMSK3 |= (1 << OCIE3A);  // Enable compare match interrupt for OCR3A.
+  TIMSK4 = 0;
+  TIMSK4 |= (1 << OCIE4A);  // Enable compare match interrupt for OCR4A.
 }
 
 void Communication::disable_rx_serial_buffer_read_interrupt() {
-  TIMSK3 = 0;  // Clear timer interrupt mask
+  TIMSK4 = 0;  // Clear timer interrupt mask
 }
 
-ISR(TIMER3_COMPA_vect) {
+ISR(TIMER4_COMPA_vect) {
   comm.rx_read_from_serial_to_local_buffer();
 }
 #endif

@@ -14,31 +14,8 @@ Consequently, if those 64 bytes are sent before more bytes are forwarded to the 
 */
 #define TX_INTERFACE_UPDATE_INTERVAL_MS 200
 
-Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter, 0.5 * (2 * PI / 360) };
+Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter };
 MinSegMPU mpu;
-
-void calibrate_mpu() {
-  comm.tx_data.calibrated = false;
-  comm.enqueue_for_transmit(comm.tx_data.to_doc());
-  while (comm.async_transmit() > 0) {}
-
-  // Only acc gyro calibration necessary
-  comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
-  comm.message_transmit_now(F("Please leave the device still on the flat plane."));
-  delay(2000);
-  comm.message_transmit_now(F("Accel Gyro calibration start!"));
-  mpu.calibrateAccelGyro();
-  comm.message_transmit_now(F("Accel Gyro calibration finished!"));
-  comm.message_transmit_now(F("-------------------------"));
-  comm.message_transmit_now(F("    Calibration done!"));
-
-  comm.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
-  comm.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
-
-  // Adresses issue (https://github.com/hideakitai/MPU9250/issues/88) that biases are not actually forwarded to the sensor after calibration. Do it manually here.
-  mpu.setAccBias(mpu.getAccBiasX(), mpu.getAccBiasY(), mpu.getAccBiasZ());
-  mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
-}
 
 void setup() {
   Serial.begin(115200);  // Baud rate has been increased permanently on the HC-06 bluetooth module to allow for bigger messages
@@ -53,10 +30,6 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t loop_start_us = micros();
-  comm.tx_data.loop_time_us = micros() - loop_start_us;
-  loop_start_us = micros();
-
   // Receive available data
   switch (comm.async_receive()) {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
@@ -78,17 +51,18 @@ void loop() {
   bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible to keep up with the configured sensor sample rate
 
   static uint32_t control_cycle_start_ms = millis();
-  if (new_mpu_data && millis() > control_cycle_start_ms + comm.rx_data.parameters.General.h) {
+  if (new_mpu_data && millis() > control_cycle_start_ms + comm.rx_data.parameters.General.h_ms) {
+    comm.tx_data.control.cycle_ms = millis() - control_cycle_start_ms;
     control_cycle_start_ms = millis();
 
     // Initialize tx interface with sensor readings
     comm.tx_data.wheel.pos_rad = wheel_position_rad();
     comm.tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
-    comm.tx_data.tilt.angle_deg.from_acc = mpu.tilt_angle_from_acc_deg();
-    comm.tx_data.tilt.angle_deg.from_euler = mpu.tilt_angle_from_euler_deg();
-    comm.tx_data.tilt.angle_deriv_deg_s.from_acc = mpu.tilt_angle_from_acc_deg.derivative();
-    comm.tx_data.tilt.angle_deriv_deg_s.from_euler = mpu.tilt_angle_from_euler_deg.derivative();
-    comm.tx_data.tilt.vel_deg_s = mpu.tilt_vel_deg_s();
+    comm.tx_data.tilt.angle_rad.from_acc = mpu.tilt_angle_from_acc_rad();
+    comm.tx_data.tilt.angle_rad.from_euler = mpu.tilt_angle_from_euler_rad();
+    comm.tx_data.tilt.angle_deriv_rad_s.from_acc = mpu.tilt_angle_from_acc_rad.derivative();
+    comm.tx_data.tilt.angle_deriv_rad_s.from_euler = mpu.tilt_angle_from_euler_rad.derivative();
+    comm.tx_data.tilt.vel_rad_s = mpu.tilt_vel_rad_s();
 
     comm.tx_data.mpu.gyroX = mpu.getGyroX();
     comm.tx_data.mpu.gyroY = mpu.getGyroY();
@@ -100,15 +74,28 @@ void loop() {
     comm.tx_data.mpu.pitch = mpu.getPitch();
     comm.tx_data.mpu.yaw = mpu.getYaw();
 
-
     // Reference controller state
-    // double &wheel_pos_rad = tx_data.wheel.pos_rad;
-    // double &tilt_angle_deg = ;
-    // double &tilt_vel_deg_s = ;
+    double &alpha_dot = comm.tx_data.tilt.vel_rad_s;
+    double &alpha = comm.tx_data.tilt.angle_rad.from_euler;
+    double &theta_dot = comm.tx_data.wheel.pos_deriv_rad_s;
+    double &theta = comm.tx_data.wheel.pos_rad;
+
+    double &k1 = comm.rx_data.parameters.K.k1;
+    double &k2 = comm.rx_data.parameters.K.k2;
+    double &k3 = comm.rx_data.parameters.K.k3;
+    double &k4 = comm.rx_data.parameters.K.k4;
+
+    double u = 0;
 
     if (comm.rx_data.control_state) {
-      
+      u = -k1 * alpha_dot - k2 * alpha - k3 * theta_dot - k4 * theta;
+    } else {
+      u = comm.rx_data.pos_setpoint;
     }
+    int16_t motor_val = write_motor_voltage(u, 9, 3);
+
+    comm.tx_data.control.u = u;
+    comm.tx_data.control.motor = motor_val;
 
     // Finish loop
     Sensor::cycle_num++;
@@ -137,4 +124,42 @@ void loop() {
 
   // Deplete transmit buffer without blocking procedurally
   comm.async_transmit();
+}
+
+void calibrate_mpu() {
+  comm.tx_data.calibrated = false;
+  comm.enqueue_for_transmit(comm.tx_data.to_doc());
+  while (comm.async_transmit() > 0) {}
+
+  // Only acc gyro calibration necessary
+  comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
+  comm.message_transmit_now(F("Please leave the device still on the flat plane."));
+  delay(2000);
+  comm.message_transmit_now(F("Accel Gyro calibration start!"));
+  mpu.calibrateAccelGyro();
+  comm.message_transmit_now(F("Accel Gyro calibration finished!"));
+  comm.message_transmit_now(F("-------------------------"));
+  comm.message_transmit_now(F("    Calibration done!"));
+
+  comm.tx_data.calibrated = true;    // Tell gui that calibration procedure is finished
+  comm.rx_data.calibration = false;  // Prevent doing a calibration in the next loop again
+
+  // Adresses issue (https://github.com/hideakitai/MPU9250/issues/88) that biases are not actually forwarded to the sensor after calibration. Do it manually here.
+  mpu.setAccBias(mpu.getAccBiasX(), mpu.getAccBiasY(), mpu.getAccBiasZ());
+  mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
+}
+
+int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
+  long volt_int_max = round(saturation * decimals);
+  long volt_int = constrain(round(volt * decimals), -volt_int_max, volt_int_max);  // map does integer calculations, so we have to increase the resolution
+  int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
+
+  if (motor_val < 0) {
+    analogWrite(PD4, -motor_val);
+    analogWrite(PD5, 0);
+  } else {
+    analogWrite(PD4, 0);
+    analogWrite(PD5, motor_val);
+  }
+  return motor_val;
 }

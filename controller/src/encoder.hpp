@@ -22,7 +22,7 @@ private:
   virtual double get_value() override;
 
 public:
-  Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, double transformation = 1, uint32_t freq_hz = 0);
+  Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, uint32_t freq_hz = 0);
 
   void setup();
   virtual void reset();

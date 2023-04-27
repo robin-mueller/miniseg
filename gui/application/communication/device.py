@@ -89,7 +89,17 @@ class BluetoothDevice:
             if data:
                 self._tx_data.update(data)  # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
             if key:
-                data.update(self._tx_data[key])
+                if isinstance(key, str):
+                    key = tuple([key])  # Convert to tuple of length 1
+
+                # Make sure that the data referred to by key is transmitted with its referring keys to make it interpretable
+                def create_root_dict(k: tuple):
+                    if len(k):
+                        first, rest = k[0], k[1:]
+                        return {first: create_root_dict(rest)}
+                    return self._tx_data[key]
+
+                data.update(create_root_dict(key))
 
             # Send data specified in the arguments
             json_data = json.dumps(data, separators=(',', ':'), cls=DataInterface.JSONEncoder).encode()

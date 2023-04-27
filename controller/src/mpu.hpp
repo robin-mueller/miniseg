@@ -1,3 +1,4 @@
+#include "Arduino.h"
 #ifndef MPU_HPP
 #define MPU_HPP
 
@@ -9,16 +10,16 @@ class MPUMeasurement : public Sensor {
   float (*getter)(MPU9250 *);
 
 public:
-  MPUMeasurement(MPU9250 *mpu, float (*getter)(MPU9250 *), double transformation = 1, uint32_t freq_hz = 0);
+  MPUMeasurement(MPU9250 *mpu, float (*getter)(MPU9250 *), uint32_t freq_hz = 0);
 
   double get_value() override;
 };
 
 class MinSegMPU : public MPU9250 {
 public:
-  MPUMeasurement tilt_angle_from_euler_deg;
-  MPUMeasurement tilt_angle_from_acc_deg;
-  MPUMeasurement tilt_vel_deg_s;
+  MPUMeasurement tilt_angle_from_euler_rad;
+  MPUMeasurement tilt_angle_from_acc_rad;
+  MPUMeasurement tilt_vel_rad_s;
 
   MinSegMPU();
 

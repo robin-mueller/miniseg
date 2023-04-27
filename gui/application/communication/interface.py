@@ -58,7 +58,14 @@ class DataInterfaceDefinition(UserDict):
         "float": float,
         "double": float,
         "int": int,
-        "uint32_t": int
+        "int8_t": int,
+        "int16_t": int,
+        "int32_t": int,
+        "int64_t": int,
+        "uint8_t": int,
+        "uint16_t": int,
+        "uint32_t": int,
+        "uint64_t": int,
     }
 
     class MissingCorrespondingType(Exception):
@@ -108,7 +115,8 @@ class DataInterface(UserDict):
     # Format: {set_type: list[defined_type(s)]).
     # Example: Let's say I set interface["foo"] = 0, but "foo" is defined as float. If I want to allow conversion to float from int I add {int: [..., float, ...]} to the whitelist.
     CONVERSION_WHITELIST = {
-        int: [float]
+        int: [float],
+        float: [int]
     }
 
     class JSONEncoder(json.JSONEncoder):
@@ -161,7 +169,7 @@ class DataInterface(UserDict):
                 try:
                     return super().__getitem__(key)
                 except KeyError:
-                    raise self.UnmatchedKeyError(key, self) from None
+                    raise UnmatchedKeyError(key, self) from None
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
                 if len(key) > 1:
                     return self.__getitem__(key[0]).__getitem__(key[1:])
@@ -196,7 +204,7 @@ class DataInterface(UserDict):
                 defined_type = self._interface_def[key]
                 set_type = type(value.value)
                 if set_type != defined_type and defined_type not in self.CONVERSION_WHITELIST.get(set_type, []):
-                    raise ConversionError(f"Type of {value.value=} is {type(value.value)} but defined was {defined_type}. "
+                    raise ConversionError(f"Type of object {value.value} is {type(value.value)} but defined was {defined_type}. "
                                           f"Interface values must be loyal to their types defined at initialization.")
                 try:
                     converted_val = defined_type(value.value)
