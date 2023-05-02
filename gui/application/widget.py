@@ -1,6 +1,6 @@
 from typing import Literal
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QFrame, QHBoxLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy
 from .qml.pybackend import QMLWidgetBackend, QMLProperty, QMLPropertyMeta
         
         
@@ -32,12 +32,13 @@ class ParameterSection(QObject, metaclass=QMLPropertyMeta):
         layout.setContentsMargins(0, 0, 18, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignRight)
         layout.setSpacing(25)
-        for key, names in available_parameters.items():
+        initial_parameters = {key: 0 for key in available_parameters.keys()}
+        self.loaded = initial_parameters
+        for key, param_names in available_parameters.items():
             frame = QFrame(widget_frame)
+            frame.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding))
             frame.setFrameShape(QFrame.NoFrame)
-            widget = QMLWidgetBackend.create(frame, self.SOURCE, self, True)
-            widget.rootObject().setProperty("title", key)
-            widget.rootObject().setProperty("names", names)
+            widget = QMLWidgetBackend.create(frame, self.SOURCE, self, title=key, param_names=param_names)
             self.groups[key] = widget
             layout.addWidget(frame)
 

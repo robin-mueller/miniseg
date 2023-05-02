@@ -73,7 +73,7 @@ class QMLPropertyInstace(Property):
 
 
 class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
-    def __init__(self, parent_frame: QFrame, source: str, size_view_to_root_object=False):
+    def __init__(self, root: QFrame, source: str, size_view_to_root_object=False, **context_properties: any):
         """
         Helper class to initialize quick widget objects from QML file.
         It incorporates the QMLPropertyMeta metaclass that simplifies the interconnection of QML and Python properties.
@@ -85,23 +85,26 @@ class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
         Make sure that the super().__init__() call is made before the QMLProperty objects are accessed, otherwise the programme will crash.
         This is due to the requirement that QObject has to be initialized before any instances or children of PySide6.QtCore.Property are called.
 
-        :param parent_frame: The frame that the referred quick widget centers in.
+        :param root: The frame that the referred quick widget centers in.
         :param source: The QML source file path.
         :param size_view_to_root_object: If true resize Mode of QQuickWidget is set to QQuickWidget.SizeViewToRootObject else to QQuickWidget.SizeRootObjectToView.
+        :param context_properties: Keyword arguments defining the initial properties of the qml object.
         """
         super().__init__()
-        self.widget = self.create(parent_frame, source, self, size_view_to_root_object)
+        self.widget = self.create(root, source, self, size_view_to_root_object, **context_properties)
 
     @staticmethod
-    def create(parent_frame: QFrame, source: str, backend: QObject, size_view_to_root_object=False):
-        widget = QQuickWidget(parent_frame)
+    def create(root: QFrame, source: str, backend: QObject, size_view_to_root_object=False, **context_properties: any):
+        widget = QQuickWidget(root)
         widget.rootContext().setContextProperty("backend", backend)
+        for name, prop in context_properties.items():
+            widget.rootContext().setContextProperty(name, prop)
         widget.setSource(source)
         widget.setResizeMode(QQuickWidget.SizeViewToRootObject if size_view_to_root_object else QQuickWidget.SizeRootObjectToView)
         widget.setAttribute(Qt.WA_AlwaysStackOnTop)
         widget.setAttribute(Qt.WA_TranslucentBackground)
         widget.setClearColor(Qt.transparent)
-        layout = QVBoxLayout(parent_frame)
+        layout = QVBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(widget)
         return widget

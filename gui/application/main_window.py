@@ -163,6 +163,7 @@ class MinSegGUI(QMainWindow):
             with Path(path).open() as file:
                 parameters = json.load(file)
             self.parameter_section.loaded = parameters
+        self.ui.actionParamSend.trigger()
 
     def save_parameters(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save Parameters", str(config.PARAMETERS_DIR), "JSON (*.json)")

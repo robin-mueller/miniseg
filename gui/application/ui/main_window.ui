@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1000</width>
-    <height>700</height>
+    <height>800</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -135,24 +135,24 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <widget class="QMenu" name="menuParameters">
-     <property name="title">
-      <string>Parameters</string>
-     </property>
-     <addaction name="actionParamLoad"/>
-     <addaction name="actionParamSaveAs"/>
-     <addaction name="separator"/>
-     <addaction name="actionParamSend"/>
-    </widget>
     <addaction name="actionConnect"/>
     <addaction name="actionDisconnect"/>
     <addaction name="separator"/>
     <addaction name="actionStartCalibration"/>
     <addaction name="separator"/>
-    <addaction name="menuParameters"/>
+   </widget>
+   <widget class="QMenu" name="menuParameters">
+    <property name="title">
+     <string>Parameters</string>
+    </property>
+    <addaction name="actionParamLoad"/>
+    <addaction name="actionParamSaveAs"/>
+    <addaction name="separator"/>
+    <addaction name="actionParamSend"/>
    </widget>
    <addaction name="menuSetup"/>
    <addaction name="menuMonitoring"/>
+   <addaction name="menuParameters"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionNewMonitor">
@@ -181,29 +181,19 @@
     <string>Start Calibration</string>
    </property>
   </action>
-  <action name="actionLoadParameters">
-   <property name="text">
-    <string>Load Parameters</string>
-   </property>
-  </action>
   <action name="actionParamLoad">
    <property name="text">
     <string>Load</string>
    </property>
   </action>
-  <action name="actionParamSave">
-   <property name="text">
-    <string>Save</string>
-   </property>
-  </action>
   <action name="actionParamSaveAs">
    <property name="text">
-    <string>Save As </string>
+    <string>Save As</string>
    </property>
   </action>
   <action name="actionParamSend">
    <property name="text">
-    <string>Send</string>
+    <string>Confirm and Send</string>
    </property>
   </action>
  </widget>

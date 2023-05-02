@@ -30,6 +30,7 @@ class MonitoringWindow(QMainWindow):
         self.ui.actionStopRecording.triggered.connect(self.stop_recording)
 
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.graph_layout)
+        self.add_graph()
 
     def update_curve_colors(self):
         curves: set[CurveDefinition] = set(itertools.chain(*[graph.curves_dict.keys() for graph in self.graphs.values()]))

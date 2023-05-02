@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Fusion  // Use linux style
 import Qt5Compat.GraphicalEffects
 import Configuration
 //import "./dummy"
@@ -8,15 +8,16 @@ Item {
     id: root
 
     property string name: "Name"
-    property real from: -99.99
-    property real to: 99.99
+    property real from: -999
+    property real to: 999
     property int decimals: 2
+    property real stepsize: 1.0
     property alias value: control.value  // Very important to use alias here since introducing another property will lead to binding conflicts
 
-    implicitWidth: childrenRect.width
-    implicitHeight: childrenRect.height
+    width: nameText.width + control.anchors.leftMargin + control.width
+    height: control.height
 
-    readonly property var locale: Qt.locale("de_DE")
+    readonly property var locale: Qt.locale("en_US")
 
     Text {
         id: nameText
@@ -38,12 +39,12 @@ Item {
         readonly property string buttonColor: Theme.background
         readonly property string buttonPressedColor: Theme.dark_foreground
 
-        width: 90
+        width: 100
         height: 25
         font.pixelSize: 14
         from: root.from * Math.pow(10, root.decimals)
         to: root.to * Math.pow(10, root.decimals)
-        stepSize: 1
+        stepSize: root.stepsize * Math.pow(10, root.decimals)
         editable: true
 
         anchors {
@@ -55,7 +56,7 @@ Item {
         validator: DoubleValidator {
             bottom: Math.min(control.from, control.to)
             top: Math.max(control.from, control.to)
-            locale: root.locale
+            locale: root.locale.name
         }
 
         textFromValue: function (value) {
@@ -67,8 +68,6 @@ Item {
         }
 
         contentItem: TextInput {
-            id: input
-
             z: 2
             text: control.textFromValue(control.value)
             font: control.font
@@ -124,8 +123,8 @@ Item {
         }
 
         up.indicator: Rectangle {
-            x: parent.width - width
-            height: parent.height
+            x: control.width - width
+            height: control.height
             implicitWidth: control.buttonWidth
             implicitHeight: control.height
             color: control.up.pressed ? control.buttonPressedColor : control.buttonColor
@@ -163,7 +162,7 @@ Item {
             z: 1
             color: Theme.foreground
             radius: 4
-            anchors.fill: input
+            anchors.fill: control.contentItem
         }
     }
 }

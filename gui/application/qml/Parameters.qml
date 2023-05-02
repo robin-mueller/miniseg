@@ -3,11 +3,10 @@ import QtQuick.Layouts 6.3
 import Configuration
 //import "./dummy"
 
+// There will be context properties set from the backend: param_names, title
+
 Item {
     id: root
-
-    property string title: "Title"
-    property var names: ["a", "b"]
 
     height: childrenRect.height
     width: childrenRect.width
@@ -15,13 +14,13 @@ Item {
     Text {
         id: header
 
-        text: root.title
+        text: title
         font.pixelSize: 14
         font.bold: true
         font.italic: true
         color: Theme.foreground
         anchors {
-            bottom: bracket.top
+            top: root.top
             left: fields.left
         }
     }
@@ -37,9 +36,9 @@ Item {
 
         radius: 18
         anchors {
-            top: fields.top
-            topMargin: -fields.spacing
-            bottom: root.bottom
+            top: header.bottom
+            bottom: fields.bottom
+            bottomMargin: -fields.spacing
             left: root.left
             right: fields.right
             rightMargin: -12
@@ -93,8 +92,8 @@ Item {
         spacing: 12
 
         anchors {
-            bottom: root.bottom
-            bottomMargin: spacing
+            top: header.bottom
+            topMargin: spacing
             left: root.left
             leftMargin: 4
         }
@@ -102,14 +101,14 @@ Item {
         Repeater {
             id: repeater
 
-            model: root.names
+            model: param_names
 
             ParameterField {
                 Layout.alignment: Qt.AlignCenter
                 name: modelData
 
-                value: backend.loaded[root.title][name] * Math.pow(10, decimals)
-                onValueChanged: () => {var d = {}; d[root.title] = {}; d[root.title][name] = value / Math.pow(10, decimals); backend.last_change = d}
+                value: backend.loaded[title][name] * Math.pow(10, decimals)
+                onValueChanged: () => {var d = {}; d[title] = {}; d[title][name] = value / Math.pow(10, decimals); backend.last_change = d}
             }
         }
     }
