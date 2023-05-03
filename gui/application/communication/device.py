@@ -119,7 +119,7 @@ class BluetoothDevice:
                 while True:
                     b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
-                        return b''
+                        raise ConnectionAbortedError("Connection was closed from the other side.")
                     self._rx_buffer.extend(b)
                     msg_start = self._rx_buffer.find(self.MSG_START_TOKEN)
                     if msg_start != -1:
@@ -129,7 +129,7 @@ class BluetoothDevice:
                 while len(self._rx_buffer) < self.MSG_HEADER_LEN:
                     b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
-                        return b''
+                        raise ConnectionAbortedError("Connection was closed from the other side.")
                     self._rx_buffer.extend(b)
                 msg_len = int.from_bytes(self._rx_buffer[self.MSG_START_TOKEN_LEN:self.MSG_START_TOKEN_LEN + self.MSG_SIZE_HINT_LEN], "big")
                 self._rx_buffer = self._rx_buffer[self.MSG_HEADER_LEN:]  # Remove msg header from buffer
@@ -138,7 +138,7 @@ class BluetoothDevice:
                 while len(self._rx_buffer) < msg_len:
                     b = self._socket.recv(self.RX_CHUNK_SIZE)
                     if b == b'':  # If socket was closed from other side
-                        return b''
+                        raise ConnectionAbortedError("Connection was closed from the other side.")
                     self._rx_buffer.extend(b)
                 msg = self._rx_buffer[:msg_len]
                 self._rx_buffer = self._rx_buffer[msg_len:]  # Remove received message from buffer

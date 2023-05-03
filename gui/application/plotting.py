@@ -195,6 +195,8 @@ class MonitoringGraph(pg.PlotItem):
         self.timer.timeout.connect(self._update)
 
     def add_curve(self, curve: ColouredCurve):
+        if not isinstance(curve, ColouredCurve):
+            raise TypeError(f"Argument curve must be an instance of {ColouredCurve} not {type(curve)}.")
         _curve = TimeseriesCurve(curve.definition.label, curve.color, self._window_size)
         self._curves_dict[curve.definition] = _curve
         self.addItem(_curve)

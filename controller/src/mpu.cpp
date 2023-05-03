@@ -31,11 +31,11 @@ void MinSegMPU::setup() {
   Wire.setClock(400000);
 
   MPU9250Setting mpu_setting;
-  mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A4G;            // Accelerometer range in +/- g (gravitational force on earth)
-  mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G500DPS;          // Gyro range in +/- dps (degrees per second)
+  mpu_setting.accel_fs_sel = ACCEL_FS_SEL::A2G;            // Accelerometer range in +/- g (gravitational force on earth)
+  mpu_setting.gyro_fs_sel = GYRO_FS_SEL::G250DPS;          // Gyro range in +/- dps (degrees per second)
   mpu_setting.accel_dlpf_cfg = ACCEL_DLPF_CFG::DLPF_45HZ;  // Accelerometer digital low pass filter bandwith
-  mpu_setting.gyro_dlpf_cfg = GYRO_DLPF_CFG::DLPF_41HZ;    // Gyro digital low pass filter bandwith
-  mpu_setting.fifo_sample_rate = FIFO_SAMPLE_RATE::SMPL_200HZ;
+  mpu_setting.gyro_dlpf_cfg = GYRO_DLPF_CFG::DLPF_20HZ;    // Gyro digital low pass filter bandwith
+  mpu_setting.fifo_sample_rate = FIFO_SAMPLE_RATE::SMPL_125HZ;
   MPU9250::setup(0x68, mpu_setting);
 
   // Filter for removing yaw angle drift using 9-DOF sensor fusion

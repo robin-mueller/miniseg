@@ -9,13 +9,16 @@ class StatusSection(QMLWidgetBackend):
 
     connection_state = QMLProperty(int)
     calibration_state = QMLProperty(int)
-    controller_switch_state = QMLProperty(bool)
+    control_switch_state = QMLProperty(bool)
     
-    def __init__(self, widget_frame: QFrame, connection_state: Literal[0, 1, 2], calibration_state: Literal[0, 1, 2], controller_switch_state: bool):
+    def __init__(self, widget_frame: QFrame, connection_state: Literal[0, 1, 2], calibration_state: Literal[0, 1, 2], control_switch_state: bool):
         super().__init__(widget_frame, self.SOURCE)
         self.connection_state = connection_state
         self.calibration_state = calibration_state
-        self.controller_switch_state = controller_switch_state
+        self.control_switch_state = control_switch_state
+
+    def set_control_switch(self, value: bool):
+        self.control_switch_state = value
 
 
 class ParameterSection(QObject, metaclass=QMLPropertyMeta):

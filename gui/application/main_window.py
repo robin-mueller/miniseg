@@ -5,7 +5,7 @@ from pathlib import Path
 from .communication.device import BluetoothDevice
 from .communication.interface import DataInterfaceDefinition, StampedData, DataInterface
 from .helper import program_uptime
-from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
+from .plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict, ColouredCurve
 from .concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from .monitoring_window import MonitoringWindow
 from .widget import SetpointSlider, ParameterSection, StatusSection
@@ -42,6 +42,7 @@ class MinSegGUI(QMainWindow):
             BTReceiveWorker,
             self.bt_device.receive,
             on_success=self.on_bt_received,
+            on_failed=self.ui.actionDisconnect.trigger,
             repeat_ms=0
         )
         self.bt_receive_time: QTime = self.start_time
@@ -49,6 +50,7 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
         self.bt_connect_label = QLabel("Connecting ...")
+
         self.status_section = StatusSection(self.ui.status_frame, 0, 0, False)
         self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters"].items()})
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
@@ -67,7 +69,7 @@ class MinSegGUI(QMainWindow):
 
         # TX interface connections
         self.setpoint_slider.value_changed.connect(lambda val: self.bt_device.send(pos_setpoint=val))
-        self.status_section.controller_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
+        self.status_section.control_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
         self.parameter_section.last_change_changed.connect(lambda val: self.bt_device.tx_data["parameters"].update(val))
 
         # Curve definitions
@@ -85,10 +87,10 @@ class MinSegGUI(QMainWindow):
 
         # Add graphs
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.plot_overview)
-        self.graphs[0] = MonitoringGraph(
-            curves=[CurveLibrary.definitions("POSITION_SETPOINT", config.THEME.primary)]
-        )
-        self.graphs[0].start()
+        overview_curves = CurveLibrary.colorize({CurveLibrary.definitions("CONTROL/MOTOR"), CurveLibrary.definitions("CONTROL/CYCLE_US")})
+        for index, (curve, color) in enumerate(overview_curves.items()):
+            self.graphs[index] = MonitoringGraph(curves=[ColouredCurve(curve, color)])
+            self.graphs[index].start()
 
     def on_bt_connect(self):
         self.ui.actionConnect.setEnabled(False)

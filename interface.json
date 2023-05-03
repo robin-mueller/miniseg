@@ -9,25 +9,10 @@
         "from_euler": "double",
         "from_acc": "double"
       },
-      "angle_deriv_rad_s": {
-        "from_euler": "double",
-        "from_acc": "double"
-      },
       "vel_rad_s": "double"
     },
-    "mpu": {
-      "gyroX": "double",
-      "gyroY": "double",
-      "gyroZ": "double",
-      "accX": "double",
-      "accY": "double",
-      "accZ": "double",
-      "roll": "double",
-      "pitch": "double",
-      "yaw": "double"
-    },
     "control": {
-      "cycle_ms": "uint32_t",
+      "cycle_us": "uint32_t",
       "u": "double",
       "motor": "int16_t"
     },
@@ -39,7 +24,10 @@
     "pos_setpoint": "double",
     "parameters": {
       "General": {
-        "h_ms": "uint16_t"
+        "h_ms": "uint16_t",
+        "alpha_off": "double",
+        "r_stop": "uint8_t",
+        "r_start": "uint8_t"
       },
       "K": {
         "k1": "double",

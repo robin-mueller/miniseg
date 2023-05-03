@@ -57,12 +57,12 @@ Item {
 
         Rectangle {
             color: Theme.foreground
-            width: parent.border.width
             anchors {
                 top: parent.bottom
                 topMargin: -parent.radius
                 bottom: parent.bottom
                 right: parent.right
+                rightMargin: -parent.border.width
             }
         }
 
@@ -77,10 +77,11 @@ Item {
         }
 
         Rectangle {
-            color: parent.border.color
-            height: parent.border.width
+            color: Theme.foreground
             anchors {
                 top: parent.top
+                bottom: parent.top
+                bottomMargin: -parent.border.width
                 left: parent.left
                 right: parent.horizontalCenter
             }
@@ -106,6 +107,7 @@ Item {
             ParameterField {
                 Layout.alignment: Qt.AlignCenter
                 name: modelData
+                decimals: 3
 
                 value: backend.loaded[title][name] * Math.pow(10, decimals)
                 onValueChanged: () => {var d = {}; d[title] = {}; d[title][name] = value / Math.pow(10, decimals); backend.last_change = d}

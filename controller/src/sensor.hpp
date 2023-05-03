@@ -6,9 +6,9 @@
 class Sensor {
 private:
   double value = 0;
-  uint32_t value_ts_ms = 0;
+  uint32_t value_ts_us = 0;
   double prev_value = 0;
-  uint32_t prev_value_ts_ms = 0;
+  uint32_t prev_value_ts_us = 0;
   double integrator = 0;
   uint32_t prev_cycle_num = 0;
 

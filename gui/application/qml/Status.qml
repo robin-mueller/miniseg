@@ -118,8 +118,8 @@ GridLayout {
         Switch {
             id: controller_switch
 
-            checked: backend.controller_switch_state
-            onToggled: backend.controller_switch_state = checked
+            checked: backend.control_switch_state
+            onToggled: backend.control_switch_state = checked
 
             anchors {
                 left: parent.left

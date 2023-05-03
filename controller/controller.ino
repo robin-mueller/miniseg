@@ -12,7 +12,7 @@ So the transmit pitch interval must not be faster than that. Additionally it sho
 These exist since the buffer is only asynchronously emptied (that is in parallel to other executing code) in chunks of 64 bytes at maximum on the Arduino Mega.
 Consequently, if those 64 bytes are sent before more bytes are forwarded to the serial transmit hardware buffer, transmit delays occur.
 */
-#define TX_INTERFACE_UPDATE_INTERVAL_MS 200
+#define TX_INTERFACE_UPDATE_INTERVAL_MS 100
 
 Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter };
 MinSegMPU mpu;
@@ -48,35 +48,23 @@ void loop() {
       break;
   }
 
-  bool new_mpu_data = mpu.update();  // This has to be called as frequent as possible to keep up with the configured sensor sample rate
+  mpu.update();  // This has to be called as frequent as possible to keep up with the configured MPU FIFO buffer sample rate
 
-  static uint32_t control_cycle_start_ms = millis();
-  if (new_mpu_data && millis() > control_cycle_start_ms + comm.rx_data.parameters.General.h_ms) {
-    comm.tx_data.control.cycle_ms = millis() - control_cycle_start_ms;
-    control_cycle_start_ms = millis();
+  static uint32_t control_cycle_start_us = micros();
+  if (millis() > control_cycle_start_us * 1e-3 + comm.rx_data.parameters.General.h_ms) {
+    comm.tx_data.control.cycle_us = micros() - control_cycle_start_us;
+    control_cycle_start_us = micros();
 
     // Initialize tx interface with sensor readings
     comm.tx_data.wheel.pos_rad = wheel_position_rad();
     comm.tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
     comm.tx_data.tilt.angle_rad.from_acc = mpu.tilt_angle_from_acc_rad();
     comm.tx_data.tilt.angle_rad.from_euler = mpu.tilt_angle_from_euler_rad();
-    comm.tx_data.tilt.angle_deriv_rad_s.from_acc = mpu.tilt_angle_from_acc_rad.derivative();
-    comm.tx_data.tilt.angle_deriv_rad_s.from_euler = mpu.tilt_angle_from_euler_rad.derivative();
     comm.tx_data.tilt.vel_rad_s = mpu.tilt_vel_rad_s();
-
-    comm.tx_data.mpu.gyroX = mpu.getGyroX();
-    comm.tx_data.mpu.gyroY = mpu.getGyroY();
-    comm.tx_data.mpu.gyroZ = mpu.getGyroZ();
-    comm.tx_data.mpu.accX = mpu.getAccX();
-    comm.tx_data.mpu.accY = mpu.getAccY();
-    comm.tx_data.mpu.accZ = mpu.getAccZ();
-    comm.tx_data.mpu.roll = mpu.getRoll();
-    comm.tx_data.mpu.pitch = mpu.getPitch();
-    comm.tx_data.mpu.yaw = mpu.getYaw();
 
     // Reference controller state
     double &alpha_dot = comm.tx_data.tilt.vel_rad_s;
-    double &alpha = comm.tx_data.tilt.angle_rad.from_euler;
+    double alpha = comm.tx_data.tilt.angle_rad.from_euler + comm.rx_data.parameters.General.alpha_off;
     double &theta_dot = comm.tx_data.wheel.pos_deriv_rad_s;
     double &theta = comm.tx_data.wheel.pos_rad;
 
@@ -153,6 +141,14 @@ int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
   long volt_int_max = round(saturation * decimals);
   long volt_int = constrain(round(volt * decimals), -volt_int_max, volt_int_max);  // map does integer calculations, so we have to increase the resolution
   int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
+
+  // Motor deadzone compensation
+  if (abs(motor_val) < comm.rx_data.parameters.General.r_stop) motor_val = 0;
+  else {
+    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.General.r_start, UINT8_MAX);
+    if (motor_val < 0) motor_val = -(int16_t)abs_deadzone_compensated_motor_val;
+    else motor_val = abs_deadzone_compensated_motor_val;
+  }
 
   if (motor_val < 0) {
     analogWrite(PD4, -motor_val);

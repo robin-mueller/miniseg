@@ -100,6 +100,7 @@ class ConcurrentTask:
             if self._timer.isSingleShot():
                 self._worker.finished.connect(self.stop)
             self.thread.started.connect(self._timer.start)
+            self.thread.finished.connect(self._timer.stop)
             self.thread.start()
         else:
             raise RuntimeError("This task is already running!")
