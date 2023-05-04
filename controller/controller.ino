@@ -68,19 +68,29 @@ void loop() {
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
     static double u = 0;
-    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;
+    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
+    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
     if (comm.rx_data.control_state) {
-      estimate_state(x1, x2, x3, x4, u, y1, y2, y3);
-      comm.tx_data.observer.tilt.vel_rad_s = x1;
-      comm.tx_data.observer.tilt.angle_rad = x2;
-      comm.tx_data.observer.wheel.vel_rad_s = x3;
-      comm.tx_data.observer.wheel.angle_rad = x4;
-      
-      calculate_control_signal(u, x1, x2, x3, x4);
+
+      // Correct state estimate
+      correct_state_estimation(x1_corr, x2_corr, x3_corr, x4_corr, x1, x2, x3, x4, y1, y2, y3);
+
+      comm.tx_data.observer.tilt.vel_rad_s = x1_corr;
+      comm.tx_data.observer.tilt.angle_rad = x2_corr;
+      comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
+      comm.tx_data.observer.wheel.angle_rad = x4_corr;
+
+      calculate_control_signal(u, x1_corr, x2_corr, x3_corr, x4_corr);
+
+      // Generate state estimate for next cycle
+      predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
+
     } else {
+
       u = comm.rx_data.pos_setpoint;
     }
+
     int16_t motor_val = write_motor_voltage(u, 9, 3);
 
     comm.tx_data.control.u = u;
@@ -138,7 +148,7 @@ void calibrate_mpu() {
   mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
 }
 
-void estimate_state(double &x1, double &x2, double &x3, double &x4, double &u_prev, double &y1, double &y2, double &y3) {
+void predict_state_estimation(double &x1, double &x2, double &x3, double &x4, double &u, double &y1, double &y2, double &y3) {
   double &l11 = comm.rx_data.parameters.inferred.ObserverGain.l11;
   double &l12 = comm.rx_data.parameters.inferred.ObserverGain.l12;
   double &l13 = comm.rx_data.parameters.inferred.ObserverGain.l13;
@@ -179,10 +189,34 @@ void estimate_state(double &x1, double &x2, double &x3, double &x4, double &u_pr
   double x3_prev = x3;
   double x4_prev = x4;
 
-  x1 = o_phi11 * x1_prev + o_phi12 * x2_prev + o_phi13 * x3_prev + o_phi14 * x4_prev + o_gam1 * u_prev + l11 * y1 + l12 * y2 + l13 * y3;
-  x2 = o_phi21 * x1_prev + o_phi22 * x2_prev + o_phi23 * x3_prev + o_phi24 * x4_prev + o_gam2 * u_prev + l21 * y1 + l22 * y2 + l23 * y3;
-  x3 = o_phi31 * x1_prev + o_phi32 * x2_prev + o_phi33 * x3_prev + o_phi34 * x4_prev + o_gam3 * u_prev + l31 * y1 + l32 * y2 + l33 * y3;
-  x4 = o_phi41 * x1_prev + o_phi42 * x2_prev + o_phi43 * x3_prev + o_phi44 * x4_prev + o_gam4 * u_prev + l41 * y1 + l42 * y2 + l43 * y3;
+  x1 = o_phi11 * x1_prev + o_phi12 * x2_prev + o_phi13 * x3_prev + o_phi14 * x4_prev + o_gam1 * u + l11 * y1 + l12 * y2 + l13 * y3;
+  x2 = o_phi21 * x1_prev + o_phi22 * x2_prev + o_phi23 * x3_prev + o_phi24 * x4_prev + o_gam2 * u + l21 * y1 + l22 * y2 + l23 * y3;
+  x3 = o_phi31 * x1_prev + o_phi32 * x2_prev + o_phi33 * x3_prev + o_phi34 * x4_prev + o_gam3 * u + l31 * y1 + l32 * y2 + l33 * y3;
+  x4 = o_phi41 * x1_prev + o_phi42 * x2_prev + o_phi43 * x3_prev + o_phi44 * x4_prev + o_gam4 * u + l41 * y1 + l42 * y2 + l43 * y3;
+}
+
+void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, double &x1_prev, double &x2_prev, double &x3_prev, double &x4_prev, double &y1, double &y2, double &y3) {
+  double &mx11 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx11;
+  double &mx12 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx12;
+  double &mx13 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx13;
+  double &mx21 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx21;
+  double &mx22 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx22;
+  double &mx23 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx23;
+  double &mx31 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx31;
+  double &mx32 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx32;
+  double &mx33 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx33;
+  double &mx41 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx41;
+  double &mx42 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx42;
+  double &mx43 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx43;
+
+  double y1_err = (y1 - x1_prev);
+  double y2_err = (y2 - x2_prev);
+  double y3_err = (y3 - x4_prev);
+
+  x1 = x1_prev + mx11 * y1_err + mx12 * y2_err + mx13 * y3_err;
+  x2 = x2_prev + mx21 * y1_err + mx22 * y2_err + mx23 * y3_err;
+  x3 = x3_prev + mx31 * y1_err + mx32 * y2_err + mx33 * y3_err;
+  x4 = x4_prev + mx41 * y1_err + mx42 * y2_err + mx43 * y3_err;
 }
 
 void calculate_control_signal(double &u, double &x1, double &x2, double &x3, double &x4) {
@@ -195,8 +229,9 @@ void calculate_control_signal(double &u, double &x1, double &x2, double &x3, dou
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
-  long volt_int_max = round(saturation * decimals);
-  long volt_int = constrain(round(volt * decimals), -volt_int_max, volt_int_max);  // map does integer calculations, so we have to increase the resolution
+  long scale_amp = pow(10, decimals);
+  long volt_int_max = round(saturation * scale_amp);
+  long volt_int = constrain(round(volt * scale_amp), -volt_int_max, volt_int_max);  // map does integer calculations, so we increase the resolution by scaling up the double value by scale_amp
   int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
 
   // Motor deadzone compensation

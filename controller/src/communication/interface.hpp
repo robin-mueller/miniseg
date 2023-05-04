@@ -5,7 +5,7 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 741
+#define JSON_DOC_SIZE_RX 922
 #define JSON_DOC_SIZE_TX 168
 
 struct ReceiveInterface {
@@ -66,6 +66,20 @@ double gam2;
 double gam3;
 double gam4;
 } ObserverGamma;
+struct {
+double mx11;
+double mx12;
+double mx13;
+double mx21;
+double mx22;
+double mx23;
+double mx31;
+double mx32;
+double mx33;
+double mx41;
+double mx42;
+double mx43;
+} ObserverInnoGain;
 } inferred;
 } parameters;
 

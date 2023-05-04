@@ -87,6 +87,20 @@
           "gam2": "double",
           "gam3": "double",
           "gam4": "double"
+        },
+        "ObserverInnoGain": {
+          "mx11": "double",
+          "mx12": "double",
+          "mx13": "double",
+          "mx21": "double",
+          "mx22": "double",
+          "mx23": "double",
+          "mx31": "double",
+          "mx32": "double",
+          "mx33": "double",
+          "mx41": "double",
+          "mx42": "double",
+          "mx43": "double"
         }
       }
     }
