@@ -1,15 +1,27 @@
 {
   "FROM_DEVICE": {
-    "wheel": {
-      "pos_rad": "double",
-      "pos_deriv_rad_s": "double"
-    },
-    "tilt": {
-      "angle_rad": {
-        "from_euler": "double",
-        "from_acc": "double"
+    "sensor": {
+      "wheel": {
+        "angle_rad": "double",
+        "angle_deriv_rad_s": "double"
       },
-      "vel_rad_s": "double"
+      "tilt": {
+        "angle_rad": {
+          "from_euler": "double",
+          "from_acc": "double"
+        },
+        "vel_rad_s": "double"
+      }
+    },
+    "observer": {
+      "wheel": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      },
+      "tilt": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      }
     },
     "control": {
       "cycle_us": "uint32_t",
@@ -23,17 +35,59 @@
     "control_state": "bool",
     "pos_setpoint": "double",
     "parameters": {
-      "General": {
-        "h_ms": "uint16_t",
-        "alpha_off": "double",
-        "r_stop": "uint8_t",
-        "r_start": "uint8_t"
+      "variable": {
+        "General": {
+          "h_ms": "uint16_t",
+          "alpha_off": "double",
+          "r_stop": "uint8_t",
+          "r_start": "uint8_t"
+        },
+        "ControlGain": {
+          "k1": "double",
+          "k2": "double",
+          "k3": "double",
+          "k4": "double"
+        }
       },
-      "K": {
-        "k1": "double",
-        "k2": "double",
-        "k3": "double",
-        "k4": "double"
+      "inferred": {
+        "ObserverGain": {
+          "l11": "double",
+          "l12": "double",
+          "l13": "double",
+          "l21": "double",
+          "l22": "double",
+          "l23": "double",
+          "l31": "double",
+          "l32": "double",
+          "l33": "double",
+          "l41": "double",
+          "l42": "double",
+          "l43": "double"
+        },
+        "ObserverPhi": {
+          "phi11": "double",
+          "phi12": "double",
+          "phi13": "double",
+          "phi14": "double",
+          "phi21": "double",
+          "phi22": "double",
+          "phi23": "double",
+          "phi24": "double",
+          "phi31": "double",
+          "phi32": "double",
+          "phi33": "double",
+          "phi34": "double",
+          "phi41": "double",
+          "phi42": "double",
+          "phi43": "double",
+          "phi44": "double"
+        },
+        "ObserverGamma": {
+          "gam1": "double",
+          "gam2": "double",
+          "gam3": "double",
+          "gam4": "double"
+        }
       }
     }
   }

@@ -109,7 +109,7 @@ function CreateInterfaceStructFromDoc($interfaceDef)
 }
 function CreateInterfaceStructToDoc($interfaceDef)
 {
-    function AssignDocMember($val, $objName, $accessor)
+    function AssignDocMember($val, $objName, $accessor, [ref]$counter)
     {
         $key = $accessor.Split(".")[-1]
         $string = ""
@@ -119,19 +119,22 @@ function CreateInterfaceStructToDoc($interfaceDef)
         }
         elseif ($val.GetType().Name -eq "PSCustomObject")
         {
-            $string = "JsonObject $key = $objName.createNestedObject(`"$key`");`n"
+            $nested_obj_name = "obj$($counter.value)"
+            $string = "JsonObject $nested_obj_name = $objName.createNestedObject(`"$key`");`n"
+            $counter.value++
             foreach ($prop in $val.psobject.Properties)
             {
-                $string += AssignDocMember $prop.Value $key "$accessor.$( $prop.Name )"
+                $string += AssignDocMember $prop.Value $nested_obj_name "$accessor.$( $prop.Name )" $counter
             }
         }
         return $string
     }
 
+    $counter = 0
     $string = ""
     foreach ($prop in $interfaceDef.psobject.Properties)
     {
-        $string += AssignDocMember $prop.Value "doc" $prop.Name
+        $string += AssignDocMember $prop.Value "doc" $prop.Name ([ref] $counter)
     }
     return $string
 }

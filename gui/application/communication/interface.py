@@ -74,25 +74,43 @@ class DataInterfaceDefinition(UserDict):
     def __init__(self, *members: tuple[str, type], **kw_members):
         super().__init__({name: t for name, t in members}, **kw_members)
 
-    def __getitem__(self: DataInterfaceDefinitionType, key) -> DataInterfaceDefinitionType:
-        try:
-            return super().__getitem__(key)
-        except KeyError:
-            raise UnmatchedKeyError(key, self) from None
-
-    def __setitem__(self, key, val):
-        if not isinstance(key, str):
-            raise TypeError(f"key must be a string but provided was {type(key)}.")
-        if isinstance(val, str):
-            if val not in self.TYPE_TRANSLATION:
-                raise self.MissingCorrespondingType(f"Type translation for '{val}' is missing.")
-            super().__setitem__(key, self.TYPE_TRANSLATION[re.sub(r'\[\d+]', '[]', val)])  # Replace arry size specification with just empty []
-        elif isinstance(val, dict):
-            super().__setitem__(key, self.__class__(**val))
-        elif isinstance(val, type):
-            super().__setitem__(key, val)
+    def __getitem__(self: DataInterfaceDefinitionType, key: str | tuple) -> DataInterfaceDefinitionType:
+        if isinstance(key, str):  # If dict is accessed using a single key
+            try:
+                return super().__getitem__(key)
+            except KeyError:
+                raise UnmatchedKeyError(key, self) from None
+        elif isinstance(key, tuple):  # If dict is accessed using multiple keys
+            if len(key) > 1:
+                return self.__getitem__(key[0]).__getitem__(key[1:])
+            return self.__getitem__(key[0])
         else:
-            raise TypeError(f"val must be a type, string or dict but provided was {type(val)}.")
+            raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
+
+    def __setitem__(self, key: str, value):
+        if isinstance(key, str):  # If dict is accessed using a single key
+            if isinstance(value, str):
+                if value not in self.TYPE_TRANSLATION:
+                    raise self.MissingCorrespondingType(f"Type translation for '{value}' is missing.")
+                super().__setitem__(key, self.TYPE_TRANSLATION[re.sub(r'\[\d+]', '[]', value)])  # Replace arry size specification with just empty []
+                return
+            if isinstance(value, dict):
+                super().__setitem__(key, self.__class__(**value))
+                return
+            if isinstance(value, type):
+                super().__setitem__(key, value)
+                return
+
+            raise TypeError(f"val must be a type, string or dict but provided was {type(value)}.")
+
+        if isinstance(key, tuple):  # If dict is accessed using multiple keys
+            d = self.__getitem__(key[:-1])
+            if isinstance(d, type(self)):
+                d[key[-1]] = value
+                return
+            raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}.")
+
+        raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
 
 @dataclass(frozen=True, eq=True)
@@ -115,7 +133,7 @@ class DataInterface(UserDict):
     # Format: {set_type: list[defined_type(s)]).
     # Example: Let's say I set interface["foo"] = 0, but "foo" is defined as float. If I want to allow conversion to float from int I add {int: [..., float, ...]} to the whitelist.
     CONVERSION_WHITELIST = {
-        int: [float],
+        int: [float, bool],
         float: [int]
     }
 
@@ -177,7 +195,7 @@ class DataInterface(UserDict):
             else:
                 raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
-    def __setitem__(self, key: str | tuple, value: any):
+    def __setitem__(self, key: str | tuple, value):
         """
         Set an item of the data interface.
 
@@ -218,7 +236,7 @@ class DataInterface(UserDict):
 
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
                 d = self.__getitem__(key[:-1])
-                if isinstance(d, DataInterface):
+                if isinstance(d, type(self)):
                     d[key[-1]] = value
                     return
                 raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}.")

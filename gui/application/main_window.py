@@ -52,7 +52,7 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_label = QLabel("Connecting ...")
 
         self.status_section = StatusSection(self.ui.status_frame, 0, 0, False)
-        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters"].items()})
+        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters", "variable"].items()})
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
 
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
@@ -70,7 +70,7 @@ class MinSegGUI(QMainWindow):
         # TX interface connections
         self.setpoint_slider.value_changed.connect(lambda val: self.bt_device.send(pos_setpoint=val))
         self.status_section.control_switch_state_changed.connect(lambda val: self.bt_device.send(control_state=val))
-        self.parameter_section.last_change_changed.connect(lambda val: self.bt_device.tx_data["parameters"].update(val))
+        self.parameter_section.last_change_changed.connect(lambda val: self.bt_device.tx_data["parameters", "variable"].update(val))
 
         # Curve definitions
         CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, program_uptime())))

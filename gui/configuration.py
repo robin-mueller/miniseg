@@ -5,7 +5,7 @@ from PySide6.QtQml import qmlRegisterSingletonType
 HC06_BLUETOOTH_ADDRESS = "98:D3:A1:FD:34:63"
 JSON_INTERFACE_DEFINITION_PATH = Path(__file__).parent.parent / "interface.json"
 DEFAULT_RECORDING_DIR = Path(__file__).parent.parent / "recording"
-PARAMETERS_DIR = Path(__file__).parent.parent / "parameters"
+PARAMETERS_DIR = Path(__file__).parent.parent / "data" / "parameters"
 
 
 class Parameters(QObject):

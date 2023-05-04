@@ -39,8 +39,8 @@ void MinSegMPU::setup() {
   MPU9250::setup(0x68, mpu_setting);
 
   // Filter for removing yaw angle drift using 9-DOF sensor fusion
-  selectFilter(QuatFilterSel::MAHONY);
-  setFilterIterations(10);
+  selectFilter(QuatFilterSel::NONE);
+  // setFilterIterations(10);
 
   // Magnetic declination in Lund on 16th of April 2022 from https://www.magnetic-declination.com/
   setMagneticDeclination(5.016667);

@@ -14,7 +14,7 @@ Consequently, if those 64 bytes are sent before more bytes are forwarded to the 
 */
 #define TX_INTERFACE_UPDATE_INTERVAL_MS 100
 
-Encoder wheel_position_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter };
+Encoder wheel_angle_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter };
 MinSegMPU mpu;
 
 void setup() {
@@ -26,7 +26,7 @@ void setup() {
 
   // Sensor setup
   mpu.setup();
-  wheel_position_rad.setup();
+  wheel_angle_rad.setup();
 }
 
 void loop() {
@@ -51,32 +51,33 @@ void loop() {
   mpu.update();  // This has to be called as frequent as possible to keep up with the configured MPU FIFO buffer sample rate
 
   static uint32_t control_cycle_start_us = micros();
-  if (millis() > control_cycle_start_us * 1e-3 + comm.rx_data.parameters.General.h_ms) {
+  if (millis() > control_cycle_start_us * 1e-3 + comm.rx_data.parameters.variable.General.h_ms) {
     comm.tx_data.control.cycle_us = micros() - control_cycle_start_us;
     control_cycle_start_us = micros();
 
-    // Initialize tx interface with sensor readings
-    comm.tx_data.wheel.pos_rad = wheel_position_rad();
-    comm.tx_data.wheel.pos_deriv_rad_s = wheel_position_rad.derivative();
-    comm.tx_data.tilt.angle_rad.from_acc = mpu.tilt_angle_from_acc_rad();
-    comm.tx_data.tilt.angle_rad.from_euler = mpu.tilt_angle_from_euler_rad();
-    comm.tx_data.tilt.vel_rad_s = mpu.tilt_vel_rad_s();
+    // Sensor readings
+    comm.tx_data.sensor.wheel.angle_rad = wheel_angle_rad();
+    comm.tx_data.sensor.wheel.angle_deriv_rad_s = wheel_angle_rad.derivative();
+    comm.tx_data.sensor.tilt.angle_rad.from_acc = mpu.tilt_angle_from_acc_rad();
+    comm.tx_data.sensor.tilt.angle_rad.from_euler = mpu.tilt_angle_from_euler_rad();
+    comm.tx_data.sensor.tilt.vel_rad_s = mpu.tilt_vel_rad_s();
 
-    // Reference controller state
-    double &alpha_dot = comm.tx_data.tilt.vel_rad_s;
-    double alpha = comm.tx_data.tilt.angle_rad.from_euler + comm.rx_data.parameters.General.alpha_off;
-    double &theta_dot = comm.tx_data.wheel.pos_deriv_rad_s;
-    double &theta = comm.tx_data.wheel.pos_rad;
+    // System output
+    double &y1 = comm.tx_data.sensor.tilt.vel_rad_s;
+    double y2 = comm.tx_data.sensor.tilt.angle_rad.from_acc + comm.rx_data.parameters.variable.General.alpha_off;
+    double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
-    double &k1 = comm.rx_data.parameters.K.k1;
-    double &k2 = comm.rx_data.parameters.K.k2;
-    double &k3 = comm.rx_data.parameters.K.k3;
-    double &k4 = comm.rx_data.parameters.K.k4;
-
-    double u = 0;
+    static double u = 0;
+    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;
 
     if (comm.rx_data.control_state) {
-      u = -k1 * alpha_dot - k2 * alpha - k3 * theta_dot - k4 * theta;
+      estimate_state(x1, x2, x3, x4, u, y1, y2, y3);
+      comm.tx_data.observer.tilt.vel_rad_s = x1;
+      comm.tx_data.observer.tilt.angle_rad = x2;
+      comm.tx_data.observer.wheel.vel_rad_s = x3;
+      comm.tx_data.observer.wheel.angle_rad = x4;
+      
+      calculate_control_signal(u, x1, x2, x3, x4);
     } else {
       u = comm.rx_data.pos_setpoint;
     }
@@ -137,15 +138,71 @@ void calibrate_mpu() {
   mpu.setGyroBias(mpu.getGyroBiasX(), mpu.getGyroBiasY(), mpu.getGyroBiasZ());
 }
 
+void estimate_state(double &x1, double &x2, double &x3, double &x4, double &u_prev, double &y1, double &y2, double &y3) {
+  double &l11 = comm.rx_data.parameters.inferred.ObserverGain.l11;
+  double &l12 = comm.rx_data.parameters.inferred.ObserverGain.l12;
+  double &l13 = comm.rx_data.parameters.inferred.ObserverGain.l13;
+  double &l21 = comm.rx_data.parameters.inferred.ObserverGain.l21;
+  double &l22 = comm.rx_data.parameters.inferred.ObserverGain.l22;
+  double &l23 = comm.rx_data.parameters.inferred.ObserverGain.l23;
+  double &l31 = comm.rx_data.parameters.inferred.ObserverGain.l31;
+  double &l32 = comm.rx_data.parameters.inferred.ObserverGain.l32;
+  double &l33 = comm.rx_data.parameters.inferred.ObserverGain.l33;
+  double &l41 = comm.rx_data.parameters.inferred.ObserverGain.l41;
+  double &l42 = comm.rx_data.parameters.inferred.ObserverGain.l42;
+  double &l43 = comm.rx_data.parameters.inferred.ObserverGain.l43;
+
+  double &o_phi11 = comm.rx_data.parameters.inferred.ObserverPhi.phi11;
+  double &o_phi12 = comm.rx_data.parameters.inferred.ObserverPhi.phi12;
+  double &o_phi13 = comm.rx_data.parameters.inferred.ObserverPhi.phi13;
+  double &o_phi14 = comm.rx_data.parameters.inferred.ObserverPhi.phi14;
+  double &o_phi21 = comm.rx_data.parameters.inferred.ObserverPhi.phi21;
+  double &o_phi22 = comm.rx_data.parameters.inferred.ObserverPhi.phi22;
+  double &o_phi23 = comm.rx_data.parameters.inferred.ObserverPhi.phi23;
+  double &o_phi24 = comm.rx_data.parameters.inferred.ObserverPhi.phi24;
+  double &o_phi31 = comm.rx_data.parameters.inferred.ObserverPhi.phi31;
+  double &o_phi32 = comm.rx_data.parameters.inferred.ObserverPhi.phi32;
+  double &o_phi33 = comm.rx_data.parameters.inferred.ObserverPhi.phi33;
+  double &o_phi34 = comm.rx_data.parameters.inferred.ObserverPhi.phi34;
+  double &o_phi41 = comm.rx_data.parameters.inferred.ObserverPhi.phi41;
+  double &o_phi42 = comm.rx_data.parameters.inferred.ObserverPhi.phi42;
+  double &o_phi43 = comm.rx_data.parameters.inferred.ObserverPhi.phi43;
+  double &o_phi44 = comm.rx_data.parameters.inferred.ObserverPhi.phi44;
+
+  double &o_gam1 = comm.rx_data.parameters.inferred.ObserverGamma.gam1;
+  double &o_gam2 = comm.rx_data.parameters.inferred.ObserverGamma.gam2;
+  double &o_gam3 = comm.rx_data.parameters.inferred.ObserverGamma.gam3;
+  double &o_gam4 = comm.rx_data.parameters.inferred.ObserverGamma.gam4;
+
+  double x1_prev = x1;
+  double x2_prev = x2;
+  double x3_prev = x3;
+  double x4_prev = x4;
+
+  x1 = o_phi11 * x1_prev + o_phi12 * x2_prev + o_phi13 * x3_prev + o_phi14 * x4_prev + o_gam1 * u_prev + l11 * y1 + l12 * y2 + l13 * y3;
+  x2 = o_phi21 * x1_prev + o_phi22 * x2_prev + o_phi23 * x3_prev + o_phi24 * x4_prev + o_gam2 * u_prev + l21 * y1 + l22 * y2 + l23 * y3;
+  x3 = o_phi31 * x1_prev + o_phi32 * x2_prev + o_phi33 * x3_prev + o_phi34 * x4_prev + o_gam3 * u_prev + l31 * y1 + l32 * y2 + l33 * y3;
+  x4 = o_phi41 * x1_prev + o_phi42 * x2_prev + o_phi43 * x3_prev + o_phi44 * x4_prev + o_gam4 * u_prev + l41 * y1 + l42 * y2 + l43 * y3;
+}
+
+void calculate_control_signal(double &u, double &x1, double &x2, double &x3, double &x4) {
+  double &k1 = comm.rx_data.parameters.variable.ControlGain.k1;
+  double &k2 = comm.rx_data.parameters.variable.ControlGain.k2;
+  double &k3 = comm.rx_data.parameters.variable.ControlGain.k3;
+  double &k4 = comm.rx_data.parameters.variable.ControlGain.k4;
+
+  u = -k1 * x1 - k2 * x2 - k3 * x3 - k4 * x4;
+}
+
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
   long volt_int_max = round(saturation * decimals);
   long volt_int = constrain(round(volt * decimals), -volt_int_max, volt_int_max);  // map does integer calculations, so we have to increase the resolution
   int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
 
   // Motor deadzone compensation
-  if (abs(motor_val) < comm.rx_data.parameters.General.r_stop) motor_val = 0;
+  if (abs(motor_val) < comm.rx_data.parameters.variable.General.r_stop) motor_val = 0;
   else {
-    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.General.r_start, UINT8_MAX);
+    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.variable.General.r_start, UINT8_MAX);
     if (motor_val < 0) motor_val = -(int16_t)abs_deadzone_compensated_motor_val;
     else motor_val = abs_deadzone_compensated_motor_val;
   }

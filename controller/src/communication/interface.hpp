@@ -5,13 +5,14 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 214
-#define JSON_DOC_SIZE_TX 104
+#define JSON_DOC_SIZE_RX 741
+#define JSON_DOC_SIZE_TX 168
 
 struct ReceiveInterface {
 bool calibration;
 bool control_state;
 double pos_setpoint;
+struct {
 struct {
 struct {
 uint16_t h_ms;
@@ -24,7 +25,48 @@ double k1;
 double k2;
 double k3;
 double k4;
-} K;
+} ControlGain;
+} variable;
+struct {
+struct {
+double l11;
+double l12;
+double l13;
+double l21;
+double l22;
+double l23;
+double l31;
+double l32;
+double l33;
+double l41;
+double l42;
+double l43;
+} ObserverGain;
+struct {
+double phi11;
+double phi12;
+double phi13;
+double phi14;
+double phi21;
+double phi22;
+double phi23;
+double phi24;
+double phi31;
+double phi32;
+double phi33;
+double phi34;
+double phi41;
+double phi42;
+double phi43;
+double phi44;
+} ObserverPhi;
+struct {
+double gam1;
+double gam2;
+double gam3;
+double gam4;
+} ObserverGamma;
+} inferred;
 } parameters;
 
 void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
@@ -32,8 +74,9 @@ void from_doc(StaticJsonDocument<JSON_DOC_SIZE_RX> &doc);
 
 struct TransmitInterface {
 struct {
-double pos_rad;
-double pos_deriv_rad_s;
+struct {
+double angle_rad;
+double angle_deriv_rad_s;
 } wheel;
 struct {
 struct {
@@ -42,6 +85,17 @@ double from_acc;
 } angle_rad;
 double vel_rad_s;
 } tilt;
+} sensor;
+struct {
+struct {
+double angle_rad;
+double vel_rad_s;
+} wheel;
+struct {
+double angle_rad;
+double vel_rad_s;
+} tilt;
+} observer;
 struct {
 uint32_t cycle_us;
 double u;
