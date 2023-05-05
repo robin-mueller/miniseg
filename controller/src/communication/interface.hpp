@@ -5,7 +5,7 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 922
+#define JSON_DOC_SIZE_RX 1022
 #define JSON_DOC_SIZE_TX 168
 
 struct ReceiveInterface {
@@ -32,15 +32,19 @@ struct {
 double l11;
 double l12;
 double l13;
+double l14;
 double l21;
 double l22;
 double l23;
+double l24;
 double l31;
 double l32;
 double l33;
+double l34;
 double l41;
 double l42;
 double l43;
+double l44;
 } ObserverGain;
 struct {
 double phi11;
@@ -70,15 +74,19 @@ struct {
 double mx11;
 double mx12;
 double mx13;
+double mx14;
 double mx21;
 double mx22;
 double mx23;
+double mx24;
 double mx31;
 double mx32;
 double mx33;
+double mx34;
 double mx41;
 double mx42;
 double mx43;
+double mx44;
 } ObserverInnoGain;
 } inferred;
 } parameters;
