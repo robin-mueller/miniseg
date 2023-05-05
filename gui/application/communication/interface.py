@@ -105,10 +105,10 @@ class DataInterfaceDefinition(UserDict):
 
         if isinstance(key, tuple):  # If dict is accessed using multiple keys
             d = self.__getitem__(key[:-1])
-            if isinstance(d, type(self)):
+            if isinstance(d, DataInterfaceDefinition):
                 d[key[-1]] = value
                 return
-            raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}.")
+            raise TypeError(f"Key {key[-2]} doesn't point to another instance of {DataInterfaceDefinition}. Type of value is {type(d)}")
 
         raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")
 
@@ -236,9 +236,9 @@ class DataInterface(UserDict):
 
             elif isinstance(key, tuple):  # If dict is accessed using multiple keys
                 d = self.__getitem__(key[:-1])
-                if isinstance(d, type(self)):
+                if isinstance(d, DataInterface):
                     d[key[-1]] = value
                     return
-                raise TypeError(f"Key {key[-2]} doesn't point to another instance of {type(self)}.")
+                raise TypeError(f"Key {key[-2]} doesn't point to another instance of {DataInterface}. Type of value is {type(d)}.")
 
             raise TypeError(f"Argument 'key' must be a string or a tuple of strings not {type(key)}.")

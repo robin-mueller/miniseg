@@ -91,7 +91,7 @@ void loop() {
       u = comm.rx_data.pos_setpoint;
     }
 
-    int16_t motor_val = write_motor_voltage(u, 9, 3);
+    int16_t motor_val = write_motor_voltage(u, 9, 2);
 
     comm.tx_data.control.u = u;
     comm.tx_data.control.motor = motor_val;
