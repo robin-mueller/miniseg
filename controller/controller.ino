@@ -64,7 +64,7 @@ void loop() {
 
     // System output
     double &y1 = comm.tx_data.sensor.tilt.vel_rad_s;
-    double y2 = comm.tx_data.sensor.tilt.angle_rad.from_acc + comm.rx_data.parameters.variable.General.alpha_off;
+    double &y2 = comm.tx_data.sensor.tilt.angle_rad.from_acc;
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
     static double u = 0;
@@ -216,7 +216,7 @@ void calculate_control_signal(double &u, double &x1, double &x2, double &x3, dou
   double &k3 = comm.rx_data.parameters.variable.ControlGain.k3;
   double &k4 = comm.rx_data.parameters.variable.ControlGain.k4;
 
-  u = -k1 * x1 - k2 * x2 - k3 * x3 - k4 * x4;
+  u = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3 - k4 * x4;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
