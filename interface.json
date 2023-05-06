@@ -54,19 +54,15 @@
           "l11": "double",
           "l12": "double",
           "l13": "double",
-          "l14": "double",
           "l21": "double",
           "l22": "double",
           "l23": "double",
-          "l24": "double",
           "l31": "double",
           "l32": "double",
           "l33": "double",
-          "l34": "double",
           "l41": "double",
           "l42": "double",
-          "l43": "double",
-          "l44": "double"
+          "l43": "double"
         },
         "ObserverPhi": {
           "phi11": "double",
@@ -86,29 +82,19 @@
           "phi43": "double",
           "phi44": "double"
         },
-        "ObserverGamma": {
-          "gam1": "double",
-          "gam2": "double",
-          "gam3": "double",
-          "gam4": "double"
-        },
         "ObserverInnoGain": {
           "mx11": "double",
           "mx12": "double",
           "mx13": "double",
-          "mx14": "double",
           "mx21": "double",
           "mx22": "double",
           "mx23": "double",
-          "mx24": "double",
           "mx31": "double",
           "mx32": "double",
           "mx33": "double",
-          "mx34": "double",
           "mx41": "double",
           "mx42": "double",
-          "mx43": "double",
-          "mx44": "double"
+          "mx43": "double"
         }
       }
     }
