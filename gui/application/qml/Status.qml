@@ -178,12 +178,12 @@ GridLayout {
         Layout.fillHeight: true
 
         readonly property var messages: {
-            "0": backend.param_file_name + " | Not sent yet",
-            "1": backend.param_file_name + " | Sent"
+            "0": " | Not sent yet",
+            "1": " | Sent"
         }
 
         Text {
-            text: parent.messages[Number(backend.loaded_param_state).toLocaleString()]
+            text: backend.param_file_name + parent.messages[Number(backend.loaded_param_state).toLocaleString()]
             font.pixelSize: root.textSize
             color: backend.loaded_param_state === 1 ? Theme.primary : Theme.foreground
             anchors {
