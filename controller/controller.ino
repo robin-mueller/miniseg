@@ -30,6 +30,8 @@ void setup() {
 }
 
 void loop() {
+  static double xs = 0;  // Position state
+
   // Receive available data
   switch (comm.async_receive()) {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
@@ -60,6 +62,7 @@ void loop() {
 
   if (comm.rx_data.reset_pos) {
     wheel_angle_rad.reset();
+    xs = 0;
     comm.rx_data.reset_pos = false;
   }
 
@@ -83,7 +86,6 @@ void loop() {
 
     static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
     double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
-    static double xs = 0;                          // Position state
     static double u = 0;                           // Control signal
 
     // Correct state estimate
@@ -96,7 +98,8 @@ void loop() {
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
-    comm.tx_data.observer.position_mm = xs;
+    comm.tx_data.observer.position.s_mm = s;
+    comm.tx_data.observer.position.xs = xs;
 
     if (comm.rx_data.control_state) calculate_balance_control_signal(u, x1_corr, x2_corr, x3_corr, x4_corr, xs);
     else u = 0;
@@ -226,10 +229,10 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
 }
 
 void update_position_state(double &xs, double &s) {
-  double h = comm.rx_data.parameters.variable.General.h_ms * 1e3;
+  uint16_t &h = comm.rx_data.parameters.variable.General.h_ms;
   double &r = comm.rx_data.pos_setpoint_mm;
 
-  xs += h * (r - s);
+  xs += (double)h * (r - s);
 }
 
 void calculate_balance_control_signal(double &u, double &x1, double &x2, double &x3, double &x4, double &xs) {

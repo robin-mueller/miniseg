@@ -22,7 +22,7 @@ private:
   virtual double get_value() override;
 
 public:
-  const double rad_to_mm = 13 / (2 * PI);
+  const double rad_to_mm = 130 / (2 * PI);
 
   Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, uint32_t freq_hz = 0);
 

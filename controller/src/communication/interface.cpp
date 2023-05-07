@@ -127,11 +127,13 @@ obj4["vel_rad_s"] = this->observer.wheel.vel_rad_s;
 JsonObject obj5 = obj3.createNestedObject("tilt");
 obj5["angle_rad"] = this->observer.tilt.angle_rad;
 obj5["vel_rad_s"] = this->observer.tilt.vel_rad_s;
-obj3["position_mm"] = this->observer.position_mm;
-JsonObject obj6 = doc.createNestedObject("control");
-obj6["cycle_us"] = this->control.cycle_us;
-obj6["u"] = this->control.u;
-obj6["motor"] = this->control.motor;
+JsonObject obj6 = obj3.createNestedObject("position");
+obj6["s_mm"] = this->observer.position.s_mm;
+obj6["xs"] = this->observer.position.xs;
+JsonObject obj7 = doc.createNestedObject("control");
+obj7["cycle_us"] = this->control.cycle_us;
+obj7["u"] = this->control.u;
+obj7["motor"] = this->control.motor;
 doc["calibrated"] = this->calibrated;
 
 return doc;
