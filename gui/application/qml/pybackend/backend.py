@@ -66,8 +66,6 @@ class QMLPropertyInstace(Property):
             raise TypeError(f"Current value type is {type(self._value)}, but tried to set value of type {type(value)}. The initial type must be respected!")
         signal: Signal = getattr(obj, self._signal_attr_name)
 
-        # --> Notifying objects are not necessary in my implementation, since the property value variable is moved inside the QMLPropertyInstace object thus not accessible anyways!
-        # self._value = make_notifying(value, signal) if type(value) in [list, dict] else value
         self._value = value
         signal.emit(value)
 

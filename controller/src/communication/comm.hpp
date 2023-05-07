@@ -12,6 +12,27 @@ public:
   ReceiveInterface rx_data;
   TransmitInterface tx_data;
 
+  struct PacketInfo {
+    uint32_t timestamp_us = 0;
+    uint16_t message_length = 0;
+  };
+  PacketInfo rx_packet_info;
+
+  enum ReceiveCode {
+    NO_DATA_AVAILABLE,
+    PACKET_RECEIVED,
+    RX_IN_PROGRESS,
+    MESSAGE_EXCEEDS_RX_BUFFER_SIZE,
+    DESERIALIZATION_FAILED
+  };
+
+  enum TransmitCode {
+    TX_SUCCESS,
+    TX_DOC_OVERFLOW,
+    TX_BUFFER_TOO_SMALL_TO_FIT_DATA,
+    TRANSMIT_RATE_TOO_LOW
+  };
+
 private:
   static const size_t TX_STATUS_MSG_BUFFER_SIZE = 256;
   static const size_t TX_BUFFER_SIZE = 1024;
@@ -44,29 +65,15 @@ public:
 #endif
   void rx_read_from_serial_to_local_buffer();
 
-public:
-  enum ReceiveCode {
-    NO_DATA_AVAILABLE,
-    PACKET_RECEIVED,
-    RX_IN_PROGRESS,
-    MESSAGE_EXCEEDS_RX_BUFFER_SIZE,
-    DESERIALIZATION_FAILED
-  };
-
-  enum TransmitCode {
-    TX_SUCCESS,
-    TX_DOC_OVERFLOW,
-    TX_BUFFER_TOO_SMALL_TO_FIT_DATA,
-    TRANSMIT_RATE_TOO_LOW
-  };
-
 private:
   ReceiveCode receive_packet();
 
 public:
   Communication();
   void setup();
+
   ReceiveCode async_receive();
+
   TransmitCode enqueue_for_transmit(const JsonDocument &tx_doc);
   uint16_t async_transmit();
   bool message_append(const __FlashStringHelper *msg);

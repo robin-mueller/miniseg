@@ -93,6 +93,8 @@ Communication::ReceiveCode Communication::receive_packet() {
           rx_buf_head = 0;
           return ReceiveCode::MESSAGE_EXCEEDS_RX_BUFFER_SIZE;
         }
+        rx_packet_info.timestamp_us = micros();
+        rx_packet_info.message_length = rx_message_length;
         rx_buf_tail++;
         rx_message_start = rx_buf_tail;
         rx_state = 3;
@@ -100,11 +102,11 @@ Communication::ReceiveCode Communication::receive_packet() {
       case 3:
         // Wait for message to be complete
         rx_buf_tail = min(rx_message_length + rx_message_start, rx_buf_head);
-        if (rx_message_length - (rx_buf_tail - rx_message_start) > 0) return ReceiveCode::RX_IN_PROGRESS;  // Wait for more data
+        if (rx_message_length - (rx_buf_tail - rx_message_start) > 0) break;  // Wait for more data
 
         // Reset receive state machine.
         rx_state = 0;
-        if (rx_buf_tail == rx_buf_head) {
+        if (rx_buf_tail == rx_buf_head) {  // Only roll back read progress indicators when there hasn't already been received new data.
           rx_buf_tail = 0;
           rx_buf_head = 0;
         }

@@ -5,24 +5,23 @@ import Configuration
 //import "./dummy"
 
 GridLayout {
-    id: grid
+    id: root
 
-    rows: 3
     columns: 2
     columnSpacing: 15
     anchors.fill: parent
 
-    readonly property int leftStretch: 1
-    readonly property int rightStretch: 1
+    readonly property int leftWidth: 150
+    readonly property int titleSize: 14
+    readonly property int textSize: 12
 
     Item {
-        Layout.preferredWidth: grid.leftStretch
-        Layout.fillWidth: true
+        Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
 
         Text {
             text: "Bluetooth"
-            font.pixelSize: 14
+            font.pixelSize: root.titleSize
             font.bold: true
             color: Theme.foreground
             anchors {
@@ -33,7 +32,6 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: grid.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -45,7 +43,7 @@ GridLayout {
 
         Text {
             text: parent.messages[Number(backend.connection_state).toLocaleString()]
-            font.pixelSize: 12
+            font.pixelSize: root.textSize
             color: backend.connection_state === 2 ? Theme.primary : Theme.foreground
             anchors {
                 left: parent.left
@@ -55,13 +53,12 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: grid.leftStretch
-        Layout.fillWidth: true
+        Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
 
         Text {
             text: "IMU Calibration"
-            font.pixelSize: 14
+            font.pixelSize: root.titleSize
             font.bold: true
             color: Theme.foreground
             anchors {
@@ -72,7 +69,7 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: grid.rightStretch
+        Layout.preferredWidth: root.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -84,7 +81,7 @@ GridLayout {
 
         Text {
             text: parent.messages[Number(backend.calibration_state).toLocaleString()]
-            font.pixelSize: 12
+            font.pixelSize: root.textSize
             color: backend.calibration_state === 2 ? Theme.primary : Theme.foreground
             anchors {
                 left: parent.left
@@ -94,13 +91,12 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: grid.leftStretch
-        Layout.fillWidth: true
+        Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
 
         Text {
             text: "Controller"
-            font.pixelSize: 14
+            font.pixelSize: root.titleSize
             font.bold: true
             color: Theme.foreground
             anchors {
@@ -111,7 +107,7 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: grid.rightStretch
+        Layout.preferredWidth: root.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -149,12 +145,49 @@ GridLayout {
 
         Text {
             text: controller_switch.checked ? "Active" : "Idle"
-            font.pixelSize: 12
+            font.pixelSize: root.textSize
             horizontalAlignment: Text.AlignHCenter
             color: controller_switch.checked ? Theme.primary : Theme.foreground
             anchors {
                 left: controller_switch.right
-                leftMargin: grid.columnSpacing
+                leftMargin: root.columnSpacing
+                verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    Item {
+        Layout.preferredWidth: root.leftWidth
+        Layout.fillHeight: true
+
+        Text {
+            text: "Parameters"
+            font.pixelSize: root.titleSize
+            font.bold: true
+            color: Theme.foreground
+            anchors {
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    Item {
+        Layout.preferredWidth: root.rightStretch
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+
+        readonly property var messages: {
+            "0": backend.param_file_name + " | Not sent yet",
+            "1": backend.param_file_name + " | Sent"
+        }
+
+        Text {
+            text: parent.messages[Number(backend.loaded_param_state).toLocaleString()]
+            font.pixelSize: root.textSize
+            color: backend.loaded_param_state === 1 ? Theme.primary : Theme.foreground
+            anchors {
+                left: parent.left
                 verticalCenter: parent.verticalCenter
             }
         }

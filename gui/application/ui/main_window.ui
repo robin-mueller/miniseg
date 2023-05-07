@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MiniSeg GUI</string>
+   <string>MinSeg GUI</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -32,9 +32,14 @@
      <widget class="QFrame" name="parameter_frame">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>2</horstretch>
+        <horstretch>3</horstretch>
         <verstretch>2</verstretch>
        </sizepolicy>
+      </property>
+      <property name="font">
+       <font>
+        <family>Segoe UI</family>
+       </font>
       </property>
       <property name="frameShape">
        <enum>QFrame::NoFrame</enum>
@@ -93,7 +98,7 @@
      <widget class="QFrame" name="status_frame">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>1</horstretch>
+        <horstretch>2</horstretch>
         <verstretch>2</verstretch>
        </sizepolicy>
       </property>

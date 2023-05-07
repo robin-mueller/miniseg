@@ -8,7 +8,7 @@ TX_INTERFACE_UPDATE_INTERVAL_MS determines the frequency of appending data from 
 According to this table (https://lucidar.me/en/serialib/most-used-baud-rates-table/) using a baud rate of 115200 serial data can be transmitted at a real byte rate of 86.806 µs per byte.
 Depending on the size of the outgoing message and the interval in which data messages are queued up in the buffer, this could overload the transmit buffer in which case data would be lost.
 The fastest interval that is theoretically save from causing data loss can be expressed as transmit_buffer_size * real_byte_rate which for example results in 88.89 ms for a buffer size of 1024 bytes and a baud rate of 115200 bauds per second. 
-So the transmit pitch interval must not be faster than that. Additionally it should incorporate a margin for transmit buffer depletion delays that are caused by long running code.
+So the transmit enqueue interval must not be faster than that. Additionally it should incorporate a margin for transmit buffer depletion delays that are caused by long running code.
 These exist since the buffer is only asynchronously emptied (that is in parallel to other executing code) in chunks of 64 bytes at maximum on the Arduino Mega.
 Consequently, if those 64 bytes are sent before more bytes are forwarded to the serial transmit hardware buffer, transmit delays occur.
 */
@@ -38,7 +38,15 @@ void loop() {
       comm.message_enqueue_for_transmit(F("Packet received"));
       break;
     case Communication::ReceiveCode::RX_IN_PROGRESS:
-      comm.message_enqueue_for_transmit(F("Receiving ..."));
+      static uint32_t last_rx_timestamp_us = 0;
+      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {
+        comm.message_append(F("Receiving Packet of "));
+        char msg_bytes_num[6];
+        itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
+        comm.message_append(msg_bytes_num, sizeof(msg_bytes_num));
+        comm.message_enqueue_for_transmit(F(" Bytes ..."));
+        last_rx_timestamp_us = comm.rx_packet_info.timestamp_us;
+      }
       break;
     case Communication::ReceiveCode::MESSAGE_EXCEEDS_RX_BUFFER_SIZE:
       comm.message_enqueue_for_transmit(F("Receive Error: MESSAGE_EXCEEDS_RX_BUFFER_SIZE"));

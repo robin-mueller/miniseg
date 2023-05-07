@@ -105,7 +105,7 @@ Item {
             model: param_names
 
             ParameterField {
-                Layout.alignment: Qt.AlignCenter
+                Layout.alignment: Qt.AlignRight
                 name: modelData
                 decimals: 3
 
