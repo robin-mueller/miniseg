@@ -69,12 +69,12 @@ class MinSegGUI(QMainWindow):
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
         # TX interface connections
-        self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
+        self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
         self.status_section.control_switch_state_changed.connect(self.on_control_state_change)
         self.parameter_section.last_change_changed.connect(lambda changed: self.on_param_change("variable", changed))
 
         # Curve definitions
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint"].value, program_uptime())))
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
 
         def add_interface_curve_candidates(accessor: list[str], definition: DataInterfaceDefinition):
             for key, val in definition.items():
@@ -125,6 +125,9 @@ class MinSegGUI(QMainWindow):
 
         # Start receiving
         self.bt_receive_task.start()
+
+        # Send current state of tx data
+        self.bt_device.send(data=self.bt_device.tx_data)
 
     def on_bt_connection_failed(self, exception: Exception):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
@@ -194,7 +197,7 @@ class MinSegGUI(QMainWindow):
                 json.dump(self.bt_device.tx_data["parameters"], file, cls=DataInterface.JSONEncoder, indent=2)
 
     def send_parameters(self):
-        if self.do_catch_ex_in_statusbar(lambda: self.bt_device.send("parameters"), self.bt_device.NotConnectedError, "Failed to Send Parameters"):
+        if self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(key="parameters"), self.bt_device.NotConnectedError, "Failed to Send Parameters"):
             self.status_section.loaded_param_state = 1
 
     def on_param_change(self, subkey: Literal["variable", "inferred"], changed: dict):

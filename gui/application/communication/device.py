@@ -39,7 +39,7 @@ class BluetoothDevice:
     MSG_START_TOKEN_LEN = len(MSG_START_TOKEN)
     MSG_SIZE_HINT_LEN = 2
     MSG_HEADER_LEN = MSG_START_TOKEN_LEN + MSG_SIZE_HINT_LEN
-    CONNECT_TIMEOUT_SEC = 5.0
+    CONNECT_TIMEOUT_SEC = 10
     RX_CHUNK_SIZE = 4096
     ALLOWED_RX_BUFFERBLOAT = 1024
 
@@ -78,21 +78,25 @@ class BluetoothDevice:
             self._socket = None
             self._connected = False
 
-    def send(self, key: str | tuple = None, **data):
+    def send(self, *, data: dict = None, key: str | tuple = None, **update):
         """
         Sends data to the device.
 
+        :param data: The dictionary containing the data that is to be sent.
         :param key: The key referring to the data stored inside the transmit interface object. Any subordinate data will be sent. That also includes nested data.
-        :param data: Keyword arguments specifying transmit data inline. The transmit interface object will be updated with the values specified before data is sent.
+        :param update: Keyword arguments specifying transmit data inline. The transmit interface object will be updated with the values specified before data is sent.
         """
         if self._connected:
-            if data:
-                self._tx_data.update(data)  # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
+            if data is None:
+                data = {}
+            if update:
+                self._tx_data.update(update)  # Update tx data interface. This simultaneously verifies that the data is consistent with the interface.
+                data.update(update)
             if key:
                 if isinstance(key, str):
                     key = tuple([key])  # Convert to tuple of length 1
 
-                # Make sure that the data referred to by key is transmitted with its referring keys to make it interpretable
+                # Make sure that the data referred to by key is transmitted together with its referring keys to make it interpretable
                 def create_root_dict(k: tuple):
                     if len(k):
                         first, rest = k[0], k[1:]

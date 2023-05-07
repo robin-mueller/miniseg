@@ -24,7 +24,8 @@ class StatusSection(QMLWidgetBackend):
         self.loaded_param_state = loaded_param_state
 
     def set_control_switch(self, value: bool):
-        self.control_switch_state = value
+        """Set the switch state without using signals."""
+        self.widget.rootObject().setProperty("control_state", value)
 
     @Property(str)
     def param_file_name(self):

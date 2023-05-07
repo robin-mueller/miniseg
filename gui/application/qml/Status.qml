@@ -15,6 +15,8 @@ GridLayout {
     readonly property int titleSize: 14
     readonly property int textSize: 12
 
+    property alias control_state: controller_switch.checked
+
     Item {
         Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
