@@ -56,6 +56,13 @@ void loop() {
       break;
   }
 
+  if (comm.rx_data.calibration) calibrate_mpu();
+
+  if (comm.rx_data.reset_pos) {
+    wheel_angle_rad.reset();
+    comm.rx_data.reset_pos = false;
+  }
+
   mpu.update();  // This has to be called as frequent as possible to keep up with the configured MPU FIFO buffer sample rate
 
   static uint32_t control_cycle_start_us = micros();
@@ -66,45 +73,45 @@ void loop() {
     // Sensor readings
     comm.tx_data.sensor.wheel.angle_rad = wheel_angle_rad();
     comm.tx_data.sensor.wheel.angle_deriv_rad_s = wheel_angle_rad.derivative();
-    comm.tx_data.sensor.tilt.angle_rad.from_acc = mpu.tilt_angle_from_acc_rad();
-    comm.tx_data.sensor.tilt.angle_rad.from_euler = mpu.tilt_angle_from_euler_rad();
+    comm.tx_data.sensor.tilt.angle_rad = mpu.tilt_angle_from_acc_rad();
     comm.tx_data.sensor.tilt.vel_rad_s = mpu.tilt_vel_rad_s();
 
-    // System output
+    // System output measurements
     double &y1 = comm.tx_data.sensor.tilt.vel_rad_s;
-    double &y2 = comm.tx_data.sensor.tilt.angle_rad.from_acc;
+    double &y2 = comm.tx_data.sensor.tilt.angle_rad;
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
-    static double u = 0;
     static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
     double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
+    static double xs = 0;                          // Position state
+    static double u = 0;                           // Control signal
 
     // Correct state estimate
     correct_state_estimation(x1_corr, x2_corr, x3_corr, x4_corr, x1, x2, x3, x4, y1, y2, y3);
 
+    double s = wheel_angle_rad.rad_to_mm * x4_corr;  // Current position
+
+    // Estimated system state x_hat
     comm.tx_data.observer.tilt.vel_rad_s = x1_corr;
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
+    comm.tx_data.observer.position_mm = xs;
 
-    if (comm.rx_data.control_state) {
-      calculate_control_signal(u, x1_corr, x2_corr, x3_corr, x4_corr);
-    } else {
-      u = comm.rx_data.pos_setpoint;
-    }
+    if (comm.rx_data.control_state) calculate_balance_control_signal(u, x1_corr, x2_corr, x3_corr, x4_corr, xs);
+    else u = 0;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
 
     comm.tx_data.control.u = u;
     comm.tx_data.control.motor = motor_val;
 
-    // Generate state estimate for next cycle
+    // Precalculate next cycle values
     predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
+    update_position_state(xs, s);
 
     // Finish loop
     Sensor::cycle_num++;
   }
-
-  if (comm.rx_data.calibration) calibrate_mpu();
 
   // Move data to the transmit buffer
   static uint32_t last_tx_update_ms = 0;
@@ -125,7 +132,7 @@ void loop() {
     }
   }
 
-  // Deplete transmit buffer without blocking procedurally
+  // Deplete transmit buffer procedurally without blocking
   comm.async_transmit();
 }
 
@@ -153,35 +160,35 @@ void calibrate_mpu() {
 }
 
 void predict_state_estimation(double &x1, double &x2, double &x3, double &x4, double &u, double &y1, double &y2, double &y3) {
-  double &l11 = comm.rx_data.parameters.inferred.ObserverGain.l11;
-  double &l12 = comm.rx_data.parameters.inferred.ObserverGain.l12;
-  double &l13 = comm.rx_data.parameters.inferred.ObserverGain.l13;
-  double &l21 = comm.rx_data.parameters.inferred.ObserverGain.l21;
-  double &l22 = comm.rx_data.parameters.inferred.ObserverGain.l22;
-  double &l23 = comm.rx_data.parameters.inferred.ObserverGain.l23;
-  double &l31 = comm.rx_data.parameters.inferred.ObserverGain.l31;
-  double &l32 = comm.rx_data.parameters.inferred.ObserverGain.l32;
-  double &l33 = comm.rx_data.parameters.inferred.ObserverGain.l33;
-  double &l41 = comm.rx_data.parameters.inferred.ObserverGain.l41;
-  double &l42 = comm.rx_data.parameters.inferred.ObserverGain.l42;
-  double &l43 = comm.rx_data.parameters.inferred.ObserverGain.l43;
+  double &l11 = comm.rx_data.parameters.inferred.observer.gain.l11;
+  double &l12 = comm.rx_data.parameters.inferred.observer.gain.l12;
+  double &l13 = comm.rx_data.parameters.inferred.observer.gain.l13;
+  double &l21 = comm.rx_data.parameters.inferred.observer.gain.l21;
+  double &l22 = comm.rx_data.parameters.inferred.observer.gain.l22;
+  double &l23 = comm.rx_data.parameters.inferred.observer.gain.l23;
+  double &l31 = comm.rx_data.parameters.inferred.observer.gain.l31;
+  double &l32 = comm.rx_data.parameters.inferred.observer.gain.l32;
+  double &l33 = comm.rx_data.parameters.inferred.observer.gain.l33;
+  double &l41 = comm.rx_data.parameters.inferred.observer.gain.l41;
+  double &l42 = comm.rx_data.parameters.inferred.observer.gain.l42;
+  double &l43 = comm.rx_data.parameters.inferred.observer.gain.l43;
 
-  double &o_phi11 = comm.rx_data.parameters.inferred.ObserverPhi.phi11;
-  double &o_phi12 = comm.rx_data.parameters.inferred.ObserverPhi.phi12;
-  double &o_phi13 = comm.rx_data.parameters.inferred.ObserverPhi.phi13;
-  double &o_phi14 = comm.rx_data.parameters.inferred.ObserverPhi.phi14;
-  double &o_phi21 = comm.rx_data.parameters.inferred.ObserverPhi.phi21;
-  double &o_phi22 = comm.rx_data.parameters.inferred.ObserverPhi.phi22;
-  double &o_phi23 = comm.rx_data.parameters.inferred.ObserverPhi.phi23;
-  double &o_phi24 = comm.rx_data.parameters.inferred.ObserverPhi.phi24;
-  double &o_phi31 = comm.rx_data.parameters.inferred.ObserverPhi.phi31;
-  double &o_phi32 = comm.rx_data.parameters.inferred.ObserverPhi.phi32;
-  double &o_phi33 = comm.rx_data.parameters.inferred.ObserverPhi.phi33;
-  double &o_phi34 = comm.rx_data.parameters.inferred.ObserverPhi.phi34;
-  double &o_phi41 = comm.rx_data.parameters.inferred.ObserverPhi.phi41;
-  double &o_phi42 = comm.rx_data.parameters.inferred.ObserverPhi.phi42;
-  double &o_phi43 = comm.rx_data.parameters.inferred.ObserverPhi.phi43;
-  double &o_phi44 = comm.rx_data.parameters.inferred.ObserverPhi.phi44;
+  double &o_phi11 = comm.rx_data.parameters.inferred.observer.phi.phi11;
+  double &o_phi12 = comm.rx_data.parameters.inferred.observer.phi.phi12;
+  double &o_phi13 = comm.rx_data.parameters.inferred.observer.phi.phi13;
+  double &o_phi14 = comm.rx_data.parameters.inferred.observer.phi.phi14;
+  double &o_phi21 = comm.rx_data.parameters.inferred.observer.phi.phi21;
+  double &o_phi22 = comm.rx_data.parameters.inferred.observer.phi.phi22;
+  double &o_phi23 = comm.rx_data.parameters.inferred.observer.phi.phi23;
+  double &o_phi24 = comm.rx_data.parameters.inferred.observer.phi.phi24;
+  double &o_phi31 = comm.rx_data.parameters.inferred.observer.phi.phi31;
+  double &o_phi32 = comm.rx_data.parameters.inferred.observer.phi.phi32;
+  double &o_phi33 = comm.rx_data.parameters.inferred.observer.phi.phi33;
+  double &o_phi34 = comm.rx_data.parameters.inferred.observer.phi.phi34;
+  double &o_phi41 = comm.rx_data.parameters.inferred.observer.phi.phi41;
+  double &o_phi42 = comm.rx_data.parameters.inferred.observer.phi.phi42;
+  double &o_phi43 = comm.rx_data.parameters.inferred.observer.phi.phi43;
+  double &o_phi44 = comm.rx_data.parameters.inferred.observer.phi.phi44;
 
   double x1_prev = x1;
   double x2_prev = x2;
@@ -195,18 +202,18 @@ void predict_state_estimation(double &x1, double &x2, double &x3, double &x4, do
 }
 
 void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, double &x1_prev, double &x2_prev, double &x3_prev, double &x4_prev, double &y1, double &y2, double &y3) {
-  double &mx11 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx11;
-  double &mx12 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx12;
-  double &mx13 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx13;
-  double &mx21 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx21;
-  double &mx22 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx22;
-  double &mx23 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx23;
-  double &mx31 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx31;
-  double &mx32 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx32;
-  double &mx33 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx33;
-  double &mx41 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx41;
-  double &mx42 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx42;
-  double &mx43 = comm.rx_data.parameters.inferred.ObserverInnoGain.mx43;
+  double &mx11 = comm.rx_data.parameters.inferred.observer.innoGain.mx11;
+  double &mx12 = comm.rx_data.parameters.inferred.observer.innoGain.mx12;
+  double &mx13 = comm.rx_data.parameters.inferred.observer.innoGain.mx13;
+  double &mx21 = comm.rx_data.parameters.inferred.observer.innoGain.mx21;
+  double &mx22 = comm.rx_data.parameters.inferred.observer.innoGain.mx22;
+  double &mx23 = comm.rx_data.parameters.inferred.observer.innoGain.mx23;
+  double &mx31 = comm.rx_data.parameters.inferred.observer.innoGain.mx31;
+  double &mx32 = comm.rx_data.parameters.inferred.observer.innoGain.mx32;
+  double &mx33 = comm.rx_data.parameters.inferred.observer.innoGain.mx33;
+  double &mx41 = comm.rx_data.parameters.inferred.observer.innoGain.mx41;
+  double &mx42 = comm.rx_data.parameters.inferred.observer.innoGain.mx42;
+  double &mx43 = comm.rx_data.parameters.inferred.observer.innoGain.mx43;
 
   double y1_err = y1 - x1_prev;
   double y2_err = y2 - x2_prev;
@@ -218,13 +225,21 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
   x4 = x4_prev + mx41 * y1_err + mx42 * y2_err + mx43 * y3_err;
 }
 
-void calculate_control_signal(double &u, double &x1, double &x2, double &x3, double &x4) {
-  double &k1 = comm.rx_data.parameters.variable.ControlGain.k1;
-  double &k2 = comm.rx_data.parameters.variable.ControlGain.k2;
-  double &k3 = comm.rx_data.parameters.variable.ControlGain.k3;
-  double &k4 = comm.rx_data.parameters.variable.ControlGain.k4;
+void update_position_state(double &xs, double &s) {
+  double h = comm.rx_data.parameters.variable.General.h_ms * 1e3;
+  double &r = comm.rx_data.pos_setpoint_mm;
 
-  u = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3 - k4 * x4;
+  xs += h * (r - s);
+}
+
+void calculate_balance_control_signal(double &u, double &x1, double &x2, double &x3, double &x4, double &xs) {
+  double &k1 = comm.rx_data.parameters.variable.BalanceControl.k1;
+  double &k2 = comm.rx_data.parameters.variable.BalanceControl.k2;
+  double &k3 = comm.rx_data.parameters.variable.BalanceControl.k3;
+  double &k4 = comm.rx_data.parameters.variable.BalanceControl.k4;
+  double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
+
+  u = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3 - k4 * x4 - ki * xs;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {

@@ -5,13 +5,14 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 848
-#define JSON_DOC_SIZE_TX 168
+#define JSON_DOC_SIZE_RX 900
+#define JSON_DOC_SIZE_TX 160
 
 struct ReceiveInterface {
 bool calibration;
 bool control_state;
-double pos_setpoint;
+double pos_setpoint_mm;
+bool reset_pos;
 struct {
 struct {
 struct {
@@ -25,8 +26,12 @@ double k1;
 double k2;
 double k3;
 double k4;
-} ControlGain;
+} BalanceControl;
+struct {
+double ki;
+} PositionControl;
 } variable;
+struct {
 struct {
 struct {
 double l11;
@@ -41,7 +46,7 @@ double l33;
 double l41;
 double l42;
 double l43;
-} ObserverGain;
+} gain;
 struct {
 double phi11;
 double phi12;
@@ -59,7 +64,7 @@ double phi41;
 double phi42;
 double phi43;
 double phi44;
-} ObserverPhi;
+} phi;
 struct {
 double mx11;
 double mx12;
@@ -73,7 +78,8 @@ double mx33;
 double mx41;
 double mx42;
 double mx43;
-} ObserverInnoGain;
+} innoGain;
+} observer;
 } inferred;
 } parameters;
 
@@ -87,10 +93,7 @@ double angle_rad;
 double angle_deriv_rad_s;
 } wheel;
 struct {
-struct {
-double from_euler;
-double from_acc;
-} angle_rad;
+double angle_rad;
 double vel_rad_s;
 } tilt;
 } sensor;
@@ -103,6 +106,7 @@ struct {
 double angle_rad;
 double vel_rad_s;
 } tilt;
+double position_mm;
 } observer;
 struct {
 uint32_t cycle_us;

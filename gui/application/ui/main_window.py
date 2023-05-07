@@ -64,13 +64,13 @@ class MinSegGUI(QMainWindow):
         self.ui.actionParamSaveAs.triggered.connect(self.save_parameters)
         self.ui.actionParamSend.triggered.connect(self.send_parameters)
 
-        # Add receive callbacks
+        # Add interface set callbacks
         self.bt_device.rx_data.execute_when_set("calibrated", self.on_calibrated)
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
         # TX interface connections
-        self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint=val), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
-        self.status_section.control_switch_state_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=val), self.bt_device.NotConnectedError, "Failed to Send Control State"))
+        self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
+        self.status_section.control_switch_state_changed.connect(self.on_control_state_change)
         self.parameter_section.last_change_changed.connect(lambda changed: self.on_param_change("variable", changed))
 
         # Curve definitions
@@ -200,6 +200,14 @@ class MinSegGUI(QMainWindow):
     def on_param_change(self, subkey: Literal["variable", "inferred"], changed: dict):
         self.bt_device.tx_data["parameters", subkey].update(changed)
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
+
+    def on_control_state_change(self, state: bool):
+        if state:
+            self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
+        else:
+            if self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=False, reset_pos=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change"):
+                self.bt_device.tx_data["reset_pos"] = False
+                self.setpoint_slider.value = 0
 
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:
