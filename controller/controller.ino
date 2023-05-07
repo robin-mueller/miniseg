@@ -232,7 +232,7 @@ void update_position_state(double &xs, double &s) {
   uint16_t &h = comm.rx_data.parameters.variable.General.h_ms;
   double &r = comm.rx_data.pos_setpoint_mm;
 
-  xs += (double)h * (r - s);
+  xs += (double)h * (r - s) * 1e-6;
 }
 
 void calculate_balance_control_signal(double &u, double &x1, double &x2, double &x3, double &x4, double &xs) {
