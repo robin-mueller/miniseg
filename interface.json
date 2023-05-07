@@ -19,7 +19,10 @@
         "angle_rad": "double",
         "vel_rad_s": "double"
       },
-      "position_mm": "double"
+      "position": {
+        "s_mm": "double",
+        "xs": "double"
+      }
     },
     "control": {
       "cycle_us": "uint32_t",
