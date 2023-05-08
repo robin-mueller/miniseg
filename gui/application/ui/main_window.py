@@ -74,7 +74,7 @@ class MinSegGUI(QMainWindow):
         self.parameter_section.last_change_changed.connect(lambda changed: self.on_param_change("variable", changed))
 
         # Curve definitions
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("Position Setpoint", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
+        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("pos_setpoint_mm", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
 
         def add_interface_curve_candidates(accessor: list[str], definition: DataInterfaceDefinition):
             for key, val in definition.items():
@@ -128,6 +128,7 @@ class MinSegGUI(QMainWindow):
 
         # Send current state of tx data
         self.bt_device.send(data=self.bt_device.tx_data)
+        self.status_section.loaded_param_state = 1
 
     def on_bt_connection_failed(self, exception: Exception):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
@@ -146,6 +147,7 @@ class MinSegGUI(QMainWindow):
         self.ui.console.clear()
         self.status_section.connection_state = 0
         self.status_section.calibration_state = 0
+        self.status_section.loaded_param_state = 0  # Change state to not yet sent
 
     def on_bt_received(self, received: bytes):
         if not received:

@@ -2,18 +2,18 @@
   "variable": {
     "General": {
       "h_ms": 10,
-      "alpha_off": 0.014,
-      "r_stop": 5,
+      "alpha_off": 0.013,
+      "r_stop": 10,
       "r_start": 30
     },
     "BalanceControl": {
-      "k1": -12,
-      "k2": -200,
-      "k3": 0,
-      "k4": 0
+      "k1": -13.301,
+      "k2": -74.76,
+      "k3": -1.081
     },
     "PositionControl": {
-      "ki": 0
+      "k4": -0.832,
+      "ki": 0.398
     }
   },
   "inferred": {

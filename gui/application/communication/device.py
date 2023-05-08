@@ -84,7 +84,7 @@ class BluetoothDevice:
 
         :param data: The dictionary containing the data that is to be sent.
         :param key: The key referring to the data stored inside the transmit interface object. Any subordinate data will be sent. That also includes nested data.
-        :param update: Keyword arguments specifying transmit data inline. The transmit interface object will be updated with the values specified before data is sent.
+        :param update: Keyword arguments specifying transmit data inline. The transmit interface object and argument data will be updated with the values specified before data is sent.
         """
         if self._connected:
             if data is None:
