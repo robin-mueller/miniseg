@@ -20,13 +20,14 @@
         "vel_rad_s": "double"
       },
       "position": {
-        "s_mm": "double",
-        "xs": "double"
+        "s_mm": "double"
       }
     },
     "control": {
       "cycle_us": "uint32_t",
       "u": "double",
+      "u_bal": "double",
+      "u_pos": "double",
       "motor": "int16_t"
     },
     "calibrated": "bool"
@@ -47,10 +48,10 @@
         "BalanceControl": {
           "k1": "double",
           "k2": "double",
-          "k3": "double",
-          "k4": "double"
+          "k3": "double"
         },
         "PositionControl": {
+          "k4": "double",
           "ki": "double"
         }
       },

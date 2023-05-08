@@ -30,7 +30,7 @@ void setup() {
 }
 
 void loop() {
-  static double xs = 0;  // Position state
+  static double xi = 0;  // Integral action state for position control
 
   // Receive available data
   switch (comm.async_receive()) {
@@ -62,7 +62,7 @@ void loop() {
 
   if (comm.rx_data.reset_pos) {
     wheel_angle_rad.reset();
-    xs = 0;
+    xi = 0;
     comm.rx_data.reset_pos = false;
   }
 
@@ -85,32 +85,34 @@ void loop() {
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
     static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
-    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
-    static double u = 0;                           // Control signal
+    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)                 
 
     // Correct state estimate
     correct_state_estimation(x1_corr, x2_corr, x3_corr, x4_corr, x1, x2, x3, x4, y1, y2, y3);
 
-    double s = wheel_angle_rad.rad_to_mm * x4_corr;  // Current position
+    double s_mm = wheel_angle_rad.rad_to_mm * x4_corr;  // Current position
 
     // Estimated system state x_hat
     comm.tx_data.observer.tilt.vel_rad_s = x1_corr;
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
-    comm.tx_data.observer.position.s_mm = s;
-    comm.tx_data.observer.position.xs = xs;
+    comm.tx_data.observer.position.s_mm = s_mm;
 
-    if (comm.rx_data.control_state) calculate_balance_control_signal(u, x1_corr, x2_corr, x3_corr, x4_corr, xs);
-    else u = 0;
+    double u_bal = 0, u_pos = 0;
+    if (comm.rx_data.control_state) calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi);
+
+    double u = u_bal + u_pos;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
 
     comm.tx_data.control.u = u;
+    comm.tx_data.control.u_bal = u_bal;
+    comm.tx_data.control.u_pos = u_pos;
     comm.tx_data.control.motor = motor_val;
 
     // Precalculate next cycle values
     predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
-    update_position_state(xs, s);
+    if (comm.rx_data.control_state) update_position_state(xi, s_mm); // Prevent integration of wheel position error when wheels will not move. Integral windup must be prevented!
 
     // Finish loop
     Sensor::cycle_num++;
@@ -228,21 +230,22 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
   x4 = x4_prev + mx41 * y1_err + mx42 * y2_err + mx43 * y3_err;
 }
 
-void update_position_state(double &xs, double &s) {
-  uint16_t &h = comm.rx_data.parameters.variable.General.h_ms;
-  double &r = comm.rx_data.pos_setpoint_mm;
+void update_position_state(double &xi, double &s_mm) {
+  uint16_t &h_ms = comm.rx_data.parameters.variable.General.h_ms;
+  double &r_mm = comm.rx_data.pos_setpoint_mm;
 
-  xs += (double)h * (r - s) * 1e-6;
+  xi += (double)h_ms * (r_mm - s_mm) * 1e-6;
 }
 
-void calculate_balance_control_signal(double &u, double &x1, double &x2, double &x3, double &x4, double &xs) {
+void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi) {
   double &k1 = comm.rx_data.parameters.variable.BalanceControl.k1;
   double &k2 = comm.rx_data.parameters.variable.BalanceControl.k2;
   double &k3 = comm.rx_data.parameters.variable.BalanceControl.k3;
-  double &k4 = comm.rx_data.parameters.variable.BalanceControl.k4;
+  double &k4 = comm.rx_data.parameters.variable.PositionControl.k4;
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
-  u = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3 - k4 * x4 - ki * xs;
+  u_bal = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3;
+  u_pos = -k4 * x4 - ki * xi;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
