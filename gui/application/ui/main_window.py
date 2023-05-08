@@ -207,6 +207,10 @@ class MinSegGUI(QMainWindow):
             with path.open('w') as file:
                 json.dump(self.bt_device.tx_data["parameters"], file, cls=DataInterface.JSONEncoder, indent=2)
 
+            # Update loaded param file name
+            self.status_section.param_file_name = path.name
+            self.status_section.loaded_param_state = self.status_section.loaded_param_state
+
     def send_parameters(self, subkey: Literal["variable", "inferred"] = None):
         do_send = partial(self.bt_device.send, key="parameters") if subkey is None else partial(self.bt_device.send, key=("parameters", subkey))
         if self.do_catch_ex_in_statusbar(do_send, self.bt_device.NotConnectedError, "Failed to Send Parameters"):
