@@ -241,7 +241,7 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
 void update_position_state(double &xi, double &x4, double &r_rad) {
   double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
 
-  xi += h * (r_rad - x4);
+  xi += h * (x4 - r_rad);
 }
 
 void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi, double &r_rad) {
@@ -252,7 +252,7 @@ void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double 
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
   u_bal = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3;
-  u_pos = -k4 * (r_rad - x4) - ki * xi;
+  u_pos = -k4 * (x4 - r_rad) - ki * xi;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
