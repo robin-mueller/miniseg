@@ -41,5 +41,5 @@ void Encoder::reset() {
 }
 
 double Encoder::get_value() {
-  return this->counter * 0.5 * DEG_TO_RAD * rad_to_mm;
+  return this->counter * 0.5 * DEG_TO_RAD;
 }

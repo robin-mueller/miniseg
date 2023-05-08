@@ -145,6 +145,7 @@
     <addaction name="separator"/>
     <addaction name="actionStartCalibration"/>
     <addaction name="separator"/>
+    <addaction name="actionTransmitState"/>
    </widget>
    <widget class="QMenu" name="menuParameters">
     <property name="title">
@@ -182,6 +183,9 @@
    </property>
   </action>
   <action name="actionStartCalibration">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Start Calibration</string>
    </property>
@@ -197,8 +201,25 @@
    </property>
   </action>
   <action name="actionParamSend">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Confirm and Send</string>
+   </property>
+   <property name="toolTip">
+    <string>Send the parameter configuration</string>
+   </property>
+  </action>
+  <action name="actionTransmitState">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Transmit State</string>
+   </property>
+   <property name="toolTip">
+    <string>Transmit all data currently set</string>
    </property>
   </action>
  </widget>

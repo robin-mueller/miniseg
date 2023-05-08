@@ -14,6 +14,9 @@ Consequently, if those 64 bytes are sent before more bytes are forwarded to the 
 */
 #define TX_INTERFACE_UPDATE_INTERVAL_MS 100
 
+const double WHEEL_RAD_TO_MM = 130.0 / (2 * PI);
+const double WHEEL_MM_TO_RAD = 1 / WHEEL_RAD_TO_MM;
+
 Encoder wheel_angle_rad{ ENC_PIN_CHA, ENC_PIN_CHB, encoder_isr, enc_counter };
 MinSegMPU mpu;
 
@@ -37,16 +40,20 @@ void loop() {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
       break;
     case Communication::ReceiveCode::PACKET_RECEIVED:
-      comm.message_enqueue_for_transmit(F("Packet received"));
+      comm.message_append(F("## Packet ["));
+      char msg_bytes_num[6];
+      itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
+      comm.message_append(msg_bytes_num, sizeof(msg_bytes_num));
+      comm.message_enqueue_for_transmit(F(" Bytes] received!"));
       break;
     case Communication::ReceiveCode::RX_IN_PROGRESS:
       static uint32_t last_rx_timestamp_us = 0;
       if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {
-        comm.message_append(F("Receiving Packet of "));
+        comm.message_append(F("Receiving Packet ["));
         char msg_bytes_num[6];
         itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
         comm.message_append(msg_bytes_num, sizeof(msg_bytes_num));
-        comm.message_enqueue_for_transmit(F(" Bytes ..."));
+        comm.message_enqueue_for_transmit(F(" Bytes] ..."));
         last_rx_timestamp_us = comm.rx_packet_info.timestamp_us;
       }
       break;
@@ -85,22 +92,23 @@ void loop() {
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
     static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
-    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)                 
+    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
     // Correct state estimate
     correct_state_estimation(x1_corr, x2_corr, x3_corr, x4_corr, x1, x2, x3, x4, y1, y2, y3);
-
-    double s_mm = wheel_angle_rad.rad_to_mm * x4_corr;  // Current position
 
     // Estimated system state x_hat
     comm.tx_data.observer.tilt.vel_rad_s = x1_corr;
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
-    comm.tx_data.observer.position.s_mm = s_mm;
+    comm.tx_data.observer.position.s_mm = WHEEL_RAD_TO_MM * x4_corr;
+
+    // Wheel angle setpoint
+    double r_rad = comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
 
     double u_bal = 0, u_pos = 0;
-    if (comm.rx_data.control_state) calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi);
+    if (comm.rx_data.control_state) calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, r_rad);
 
     double u = u_bal + u_pos;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
@@ -112,7 +120,7 @@ void loop() {
 
     // Precalculate next cycle values
     predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
-    if (comm.rx_data.control_state) update_position_state(xi, s_mm); // Prevent integration of wheel position error when wheels will not move. Integral windup must be prevented!
+    if (comm.rx_data.control_state) update_position_state(xi, x4_corr, r_rad);  // Prevent integration of wheel position error when wheels will not move. That also avoids integral windup.
 
     // Finish loop
     Sensor::cycle_num++;
@@ -230,14 +238,13 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
   x4 = x4_prev + mx41 * y1_err + mx42 * y2_err + mx43 * y3_err;
 }
 
-void update_position_state(double &xi, double &s_mm) {
-  uint16_t &h_ms = comm.rx_data.parameters.variable.General.h_ms;
-  double &r_mm = comm.rx_data.pos_setpoint_mm;
+void update_position_state(double &xi, double &x4, double &r_rad) {
+  double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
 
-  xi += (double)h_ms * (r_mm - s_mm) * 1e-6;
+  xi += h * (r_rad - x4);
 }
 
-void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi) {
+void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi, double &r_rad) {
   double &k1 = comm.rx_data.parameters.variable.BalanceControl.k1;
   double &k2 = comm.rx_data.parameters.variable.BalanceControl.k2;
   double &k3 = comm.rx_data.parameters.variable.BalanceControl.k3;
@@ -245,7 +252,7 @@ void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double 
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
   u_bal = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3;
-  u_pos = -k4 * x4 - ki * xi;
+  u_pos = -k4 * (r_rad - x4) - ki * xi;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {

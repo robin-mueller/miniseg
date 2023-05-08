@@ -4,8 +4,9 @@
 #include <Arduino.h>
 #include "sensor.hpp"
 
-#define ENC_PIN_CHA PD2
-#define ENC_PIN_CHB PD3
+// This setting defines what is forwards and what backwards
+#define ENC_PIN_CHA PD3
+#define ENC_PIN_CHB PD2
 
 extern volatile int32_t enc_counter;
 
@@ -22,8 +23,6 @@ private:
   virtual double get_value() override;
 
 public:
-  const double rad_to_mm = 130 / (2 * PI);
-
   Encoder(uint8_t cha_pin, uint8_t chb_pin, void (*isr)(), volatile int32_t& counter, uint32_t freq_hz = 0);
 
   void setup();

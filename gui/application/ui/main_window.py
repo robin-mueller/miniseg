@@ -60,9 +60,10 @@ class MinSegGUI(QMainWindow):
         self.ui.actionConnect.triggered.connect(self.on_bt_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bt_disconnect)
         self.ui.actionStartCalibration.triggered.connect(self.on_start_calibration)
+        self.ui.actionTransmitState.triggered.connect(self.send_tx_data_state)
         self.ui.actionParamLoad.triggered.connect(self.load_parameters)
         self.ui.actionParamSaveAs.triggered.connect(self.save_parameters)
-        self.ui.actionParamSend.triggered.connect(self.send_parameters)
+        self.ui.actionParamSend.triggered.connect(lambda: self.send_parameters("variable"))
 
         # Add interface set callbacks
         self.bt_device.rx_data.execute_when_set("calibrated", self.on_calibrated)
@@ -71,7 +72,7 @@ class MinSegGUI(QMainWindow):
         # TX interface connections
         self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
         self.status_section.control_switch_state_changed.connect(self.on_control_state_change)
-        self.parameter_section.last_change_changed.connect(lambda changed: self.on_param_change("variable", changed))
+        self.parameter_section.last_change_changed.connect(lambda changed: self.update_parameters("variable", changed))
 
         # Curve definitions
         CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("pos_setpoint_mm", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
@@ -105,6 +106,10 @@ class MinSegGUI(QMainWindow):
         else:
             return True
 
+    def send_tx_data_state(self):
+        self.bt_device.send(data=self.bt_device.tx_data)
+        self.status_section.loaded_param_state = 1
+
     def on_bt_connect(self):
         self.ui.actionConnect.setEnabled(False)
         self.ui.statusbar.addWidget(self.bt_connect_label)
@@ -121,14 +126,15 @@ class MinSegGUI(QMainWindow):
         self.ui.statusbar.removeWidget(self.bt_connect_progress_bar)
         self.ui.statusbar.showMessage("Connection successful!", 3000)
         self.ui.actionDisconnect.setEnabled(True)
+        self.ui.actionStartCalibration.setEnabled(True)
+        self.ui.actionTransmitState.setEnabled(True)
+        self.ui.actionParamSend.setEnabled(True)
         self.status_section.connection_state = 2
 
         # Start receiving
         self.bt_receive_task.start()
 
-        # Send current state of tx data
-        self.bt_device.send(data=self.bt_device.tx_data)
-        self.status_section.loaded_param_state = 1
+        self.ui.actionTransmitState.trigger()
 
     def on_bt_connection_failed(self, exception: Exception):
         self.ui.statusbar.removeWidget(self.bt_connect_label)
@@ -143,6 +149,9 @@ class MinSegGUI(QMainWindow):
         self.bt_device.disconnect()
         self.ui.actionConnect.setEnabled(True)
         self.ui.actionDisconnect.setEnabled(False)
+        self.ui.actionStartCalibration.setEnabled(False)
+        self.ui.actionTransmitState.setEnabled(False)
+        self.ui.actionParamSend.setEnabled(False)
         self.ui.statusbar.showMessage("Disconnected from device!", 3000)
         self.ui.console.clear()
         self.status_section.connection_state = 0
@@ -186,8 +195,8 @@ class MinSegGUI(QMainWindow):
                 parameters = json.load(file)
             self.status_section.param_file_name = path.name
             self.parameter_section.loaded = parameters["variable"]  # Signal connection of this property will update tx data automatically after this assignment
-            self.on_param_change("inferred", parameters["inferred"])
-            self.ui.actionParamSend.trigger()
+            self.update_parameters("inferred", parameters["inferred"])
+            self.send_parameters()
 
     def save_parameters(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save Parameters", str(config.PARAMETERS_DIR), "JSON (*.json)")
@@ -198,11 +207,12 @@ class MinSegGUI(QMainWindow):
             with path.open('w') as file:
                 json.dump(self.bt_device.tx_data["parameters"], file, cls=DataInterface.JSONEncoder, indent=2)
 
-    def send_parameters(self):
-        if self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(key="parameters"), self.bt_device.NotConnectedError, "Failed to Send Parameters"):
+    def send_parameters(self, subkey: Literal["variable", "inferred"] = None):
+        do_send = partial(self.bt_device.send, key="parameters") if subkey is None else partial(self.bt_device.send, key=("parameters", subkey))
+        if self.do_catch_ex_in_statusbar(do_send, self.bt_device.NotConnectedError, "Failed to Send Parameters"):
             self.status_section.loaded_param_state = 1
 
-    def on_param_change(self, subkey: Literal["variable", "inferred"], changed: dict):
+    def update_parameters(self, subkey: Literal["variable", "inferred"], changed: dict):
         self.bt_device.tx_data["parameters", subkey].update(changed)
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
 
