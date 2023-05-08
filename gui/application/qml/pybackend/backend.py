@@ -66,8 +66,9 @@ class QMLPropertyInstace(Property):
             raise TypeError(f"Current value type is {type(self._value)}, but tried to set value of type {type(value)}. The initial type must be respected!")
         signal: Signal = getattr(obj, self._signal_attr_name)
 
-        self._value = value
-        signal.emit(value)
+        if self._value != value:  # Avoid binding loops
+            self._value = value
+            signal.emit(value)
 
 
 class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
@@ -98,10 +99,10 @@ class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
         for name, prop in context_properties.items():
             widget.rootContext().setContextProperty(name, prop)
         widget.setSource(source)
-        widget.setResizeMode(QQuickWidget.SizeViewToRootObject if size_view_to_root_object else QQuickWidget.SizeRootObjectToView)
-        widget.setAttribute(Qt.WA_AlwaysStackOnTop)
-        widget.setAttribute(Qt.WA_TranslucentBackground)
-        widget.setClearColor(Qt.transparent)
+        widget.setResizeMode(QQuickWidget.ResizeMode.SizeViewToRootObject if size_view_to_root_object else QQuickWidget.ResizeMode.SizeRootObjectToView)
+        widget.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
+        widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        widget.setClearColor(Qt.GlobalColor.transparent)
         layout = QVBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(widget)

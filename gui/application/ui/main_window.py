@@ -145,7 +145,7 @@ class MinSegGUI(QMainWindow):
 
     def on_bt_disconnect(self):
         self.bt_receive_task.stop()
-        self.status_section.set_control_switch(False)
+        self.status_section.control_switch_state = False  # This assignment will throw out a status bar error message but it won't be visible as it is overwritten immediately
         self.bt_device.disconnect()
         self.ui.actionConnect.setEnabled(True)
         self.ui.actionDisconnect.setEnabled(False)
@@ -224,13 +224,20 @@ class MinSegGUI(QMainWindow):
         if state:
             self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
         else:
-            if self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=False, reset_pos=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change"):
-                self.bt_device.tx_data["reset_pos"] = False
-                self.setpoint_slider.value = 0
+            self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=False, reset_pos=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
+            self.bt_device.tx_data["reset_pos"] = False
+            self.setpoint_slider.value = 0
 
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:
             monitor.close()
         self.bt_receive_task.stop()
         self.bt_device.disconnect()
+
+        # Stop qml engines before backends are destroyed to prevent errors
+        self.status_section.widget.deleteLater()
+        for sec in self.parameter_section.groups.values():
+            sec.deleteLater()
+        self.setpoint_slider.widget.deleteLater()
+
         super().closeEvent(event)

@@ -71,7 +71,6 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: root.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -109,7 +108,6 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: root.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -175,7 +173,6 @@ GridLayout {
     }
 
     Item {
-        Layout.preferredWidth: root.rightStretch
         Layout.fillWidth: true
         Layout.fillHeight: true
 
