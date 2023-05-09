@@ -9,4 +9,7 @@
         <file>application/assets/minus.png</file>
         <file>application/assets/plus.png</file>
     </qresource>
+    <qresource prefix="/font">
+        <file>application/assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf</file>
+    </qresource>
 </RCC>

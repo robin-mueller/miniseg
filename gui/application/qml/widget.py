@@ -1,6 +1,7 @@
 from typing import Literal
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy
+from application.plotting import CurveLibrary, ScheduledValue
 from application.qml.pybackend import QMLWidgetBackend, QMLProperty, QMLPropertyMeta
         
         
@@ -10,6 +11,7 @@ class StatusSection(QMLWidgetBackend):
     connection_state = QMLProperty(int)
     calibration_state = QMLProperty(int)
     control_switch_state = QMLProperty(bool)
+    control_cycle_time = QMLProperty(float)
     loaded_param_state = QMLProperty(int)
     param_file_name = QMLProperty(str)
     
@@ -18,8 +20,15 @@ class StatusSection(QMLWidgetBackend):
         self.connection_state = connection_state
         self.calibration_state = calibration_state
         self.control_switch_state = control_switch_state
+        self.control_cycle_time = 0.0
         self.loaded_param_state = loaded_param_state
         self.param_file_name = "Nothing Loaded"
+
+        self.scheduled_control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value, 1000)
+        self.scheduled_control_cycle_time.updated.connect(self.set_control_cycle_time)
+
+    def set_control_cycle_time(self, value: float):
+        self.control_cycle_time = value
 
 
 class ParameterSection(QObject, metaclass=QMLPropertyMeta):
@@ -35,7 +44,7 @@ class ParameterSection(QObject, metaclass=QMLPropertyMeta):
         layout = QHBoxLayout(widget_frame)
         layout.setContentsMargins(0, 0, 18, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        layout.setSpacing(25)
+        layout.setSpacing(15)
         initial_parameters = {key: 0 for key in available_parameters.keys()}
         self.loaded = initial_parameters
         for key, param_names in available_parameters.items():

@@ -17,7 +17,6 @@ Item {
         text: title
         font.pixelSize: 14
         font.bold: true
-        font.italic: true
         color: Theme.foreground
         anchors {
             top: root.top

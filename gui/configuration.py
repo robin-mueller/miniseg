@@ -9,9 +9,9 @@ PARAMETERS_DIR = Path(__file__).parent.parent / "data" / "parameters"
 
 
 class Parameters(QObject):
-    @Property(int)
-    def refresh_rate_hz(self):
-        return 40
+    @Property(int, constant=True)
+    def plot_refresh_rate_hz(self):
+        return 20
 
 
 class Theme(QObject):
@@ -31,13 +31,13 @@ class Theme(QObject):
     def border(self):
         return "#505153"
 
-#    @QMLProperty(str, constant=True)
-#    def secondary(self):
-#        return "#ffe2c2"
-
     @Property(str, constant=True)
     def primary(self):
         return "#6ec4c4"
+
+    @Property(str, constant=True)
+    def number_font_family(self):
+        return "JetBrains Mono"
 
 
 # noinspection PyTypeChecker

@@ -1,5 +1,6 @@
 import sys
 import qdarktheme
+from PySide6.QtGui import QFontDatabase
 
 # noinspection PyUnresolvedReferences
 from resources import rc_resources  # Loads Qt resources to become available for PySide6
@@ -11,10 +12,10 @@ from PySide6.QtCore import Qt, QCoreApplication
 
 
 if __name__ == "__main__":
+    app = QApplication(sys.argv)
     QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     QQuickWindow.setGraphicsApi(QSGRendererInterface.OpenGLRhi)
-    
-    app = QApplication(sys.argv)
+    QFontDatabase.addApplicationFont(":/font/application/assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
     qdarktheme.setup_theme(
         custom_colors={
             "[dark]": {

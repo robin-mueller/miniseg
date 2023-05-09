@@ -32,12 +32,16 @@ class MonitoringWindow(QMainWindow):
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.graph_layout)
         self.add_graph()
 
+    def start_plotting(self):
+        for graph in self.graphs.values():
+            graph.start()
+
     def update_curve_colors(self):
-        curves: set[CurveDefinition] = set(itertools.chain(*[graph.curves_dict.keys() for graph in self.graphs.values()]))
-        colors = CurveLibrary.colorize(curves)
+        curve_defs: list[CurveDefinition] = list(itertools.chain(*[graph.curves_dict.keys() for graph in self.graphs.values()]))
+        color_map = {coloured_curve.definition: coloured_curve.color for coloured_curve in CurveLibrary.colorize(curve_defs)}
         for graph in self.graphs.values():
             for curve_definition, curve in graph.curves_dict.items():
-                curve.setPen(colors[curve_definition])
+                curve.setPen(color_map[curve_definition])
 
     def add_graph(self):
         graph_id = 0
@@ -68,7 +72,6 @@ class MonitoringWindow(QMainWindow):
             action.toggled.connect(partial(toggle_curve, CurveLibrary.definitions(name)))
 
         self.graphs[graph_id] = MonitoringGraph(title=graph_title)
-        self.graphs[graph_id].start()
 
     def start_recording(self):
         if any([graph.curves_dict for graph in self.graphs.values()]):  # Only start recording if any curves have been defined

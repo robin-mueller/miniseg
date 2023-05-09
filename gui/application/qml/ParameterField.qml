@@ -23,7 +23,7 @@ Item {
         id: nameText
 
         text: root.name
-        font.pixelSize: 14
+        font.pixelSize: 12
         color: Theme.foreground
         anchors {
             verticalCenter: root.verticalCenter
@@ -39,9 +39,12 @@ Item {
         readonly property string buttonColor: Theme.background
         readonly property string buttonPressedColor: Theme.dark_foreground
 
-        width: 100
-        height: 25
-        font.pixelSize: 14
+        width: 110
+        height: 24
+        font {
+            pixelSize: 14
+            family: Theme.number_font_family
+        }
         from: root.from * Math.pow(10, root.decimals)
         to: root.to * Math.pow(10, root.decimals)
         stepSize: root.stepsize * Math.pow(10, root.decimals)

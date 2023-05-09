@@ -3,12 +3,13 @@ import seaborn as sns
 import pyqtgraph as pg
 import configuration as config
 
-from .communication.interface import StampedData
-from typing import Callable
+from functools import partial
+from typing import Callable, overload
 from dataclasses import dataclass
 from collections import UserDict
-from time import perf_counter
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal, QObject
+from PySide6.QtGui import QFont
+from .communication.interface import StampedData, DataInterface, DataInterfaceDefinition
 
 
 @dataclass(frozen=True, eq=True)
@@ -39,14 +40,41 @@ class ColouredCurve:
 class CurveLibrary:
     _DEFS: dict[str, CurveDefinition] = {}
 
-    @staticmethod
-    def colorize(curves: set[CurveDefinition]) -> dict[CurveDefinition, str]:
+    @classmethod
+    def colorize(cls, curves: list[str] | list[CurveDefinition]):
         color_palette = sns.color_palette('husl', len(curves)).as_hex()
-        return {curve: color_palette[index] for index, curve in enumerate(curves)}
+        return [ColouredCurve(curve, color_palette[index]) if isinstance(curve, CurveDefinition) else cls.definitions(curve, color_palette[index]) for index, curve in enumerate(curves)]
 
     @classmethod
     def add_definition(cls, key: str, curve_definition: CurveDefinition):
         cls._DEFS[key] = curve_definition
+
+    @classmethod
+    def parse_data_interface(cls, interface: DataInterface):
+        def add_data_interface_curves(accessor: list[str], definition: DataInterfaceDefinition):
+            for key, val in definition.items():
+                _accessor = accessor + [key]
+                if val in [float, int, bool]:
+                    cls.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(interface.get, tuple(_accessor))))
+                elif isinstance(val, DataInterfaceDefinition):
+                    add_data_interface_curves(_accessor, val)
+
+        add_data_interface_curves([], interface.definition)
+
+    @classmethod
+    @overload
+    def definitions(cls) -> dict[str, CurveDefinition]:
+        ...
+
+    @classmethod
+    @overload
+    def definitions(cls, key: str) -> CurveDefinition:
+        ...
+
+    @classmethod
+    @overload
+    def definitions(cls, key: str, color: any) -> ColouredCurve:
+        ...
 
     @classmethod
     def definitions(cls, key: str = None, color: any = None):
@@ -57,36 +85,31 @@ class CurveLibrary:
         return ColouredCurve(cls._DEFS[key], color)
 
 
-class ScheduledValue:
-    def __init__(self, interval_sec: float, start_value: float = 0, initial_previous_value: float = None):
+class ScheduledValue(QObject):
+    updated = Signal(float)
+
+    def __init__(self, getter: Callable[[], float], interval_ms: float):
         """
         This introduces a schedule for a value. This means, that a value is only updated,
         when the specified time interval since the last schedule update is exceeded.
 
-        :param interval_sec: Frequency to update the value schedules in seconds.
-        :param start_value: Specifies the start value, which is returned by the request method until the first schedule has been initiated.
-        :param initial_previous_value: Specifies the value that will be returned by accessing property previous_value before first schedule has timeouted.
+        :param getter: Getter function for the associated value.
+        :param interval_ms: Rate to update the value in milliseconds. The updated signal will be emitted at that rate.
         """
-        self.interval_sec = interval_sec
-        self._last_schedule_update = perf_counter()
-        self._value = start_value
-        self._prev_val = start_value if initial_previous_value is None else initial_previous_value
-        self._register_arr = np.array([self._value])
+        super().__init__()
+        self._register_arr = np.array([])
+        self._register_timer = QTimer()
+        self._register_timer.timeout.connect(lambda: self._register(getter()))
+        self._register_timer.setInterval(round(1000 / config.PARAMETERS.plot_refresh_rate_hz))
+        self._publish_value_timer = QTimer()
+        self._publish_value_timer.timeout.connect(lambda: self.updated.emit(self._request()))
+        self._publish_value_timer.setInterval(interval_ms)
 
-    @property
-    def previous_value(self):
-        return self._prev_val
+    def start(self):
+        self._register_timer.start()
+        self._publish_value_timer.start()
 
-    @property
-    def schedule_timeout(self):
-        """
-        Check whether the value's schedule timeout has been reached. This means, that a new value will be returned upon request.
-
-        :return: True if timout is reached, False otherwise.
-        """
-        return perf_counter() - self._last_schedule_update > self.interval_sec
-
-    def register(self, value: float):
+    def _register(self, value: float):
         """
         Registers a new value in the array.
 
@@ -94,23 +117,13 @@ class ScheduledValue:
         """
         self._register_arr = np.append(self._register_arr, [value])
 
-    def request(self, value: float = None):
+    def _request(self):
         """
-        Returns the average of all registered values if the last value update lies
-        sufficiently long in the past.
-
-        :param value: Optional. This is a shorthand for registering and requesting a value at the same time. The given value will be registered before the request is issued.
-        :return: The value of the current schedule.
+        Returns the average of all registered values.
         """
-        if value is not None:
-            self.register(value)
-
-        if self.schedule_timeout:
-            self._prev_val = self._value
-            self._value = np.mean(self._register_arr)
-            self._register_arr = np.array([])
-            self._last_schedule_update = perf_counter()
-        return self._value
+        value = np.mean(self._register_arr)
+        self._register_arr = np.array([])
+        return value
 
 
 class TimeseriesCurve(pg.PlotDataItem):
@@ -154,7 +167,7 @@ class TimeseriesCurve(pg.PlotDataItem):
         # Initialize timeseries if first time calling
         _value = np.nan if value is None else value
         if not self._visible_timeseries.any():
-            t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * config.PARAMETERS.refresh_rate_hz))  # Initial time axis which is subject to change
+            t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * config.PARAMETERS.plot_refresh_rate_hz))  # Initial time axis which is subject to change
             self._visible_timeseries = np.array([t, np.full(t.shape[0], np.nan)])  # Initial values np.nan
 
         # Extend recording array
@@ -173,6 +186,7 @@ class MonitoringGraph(pg.PlotItem):
     """
     Class for defining real-time monitoring graphs.
     """
+    NUMBER_FONT = QFont(config.THEME.number_font_family)
 
     def __init__(self, curves: list[ColouredCurve] = None, *, title: str = None, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
         super().__init__(**kwargs)
@@ -182,6 +196,8 @@ class MonitoringGraph(pg.PlotItem):
         self.setMouseEnabled(x=False)
         self.setLabel('left', ylabel, color=config.THEME.foreground)
         self.setLabel('bottom', xlabel)
+        self.getAxis('left').setStyle(tickFont=self.NUMBER_FONT)
+        self.getAxis('bottom').setStyle(tickFont=self.NUMBER_FONT)
         self._window_size = window_size_sec
 
         # Add data to plot
@@ -191,7 +207,6 @@ class MonitoringGraph(pg.PlotItem):
                 self.add_curve(curve)
 
         self.timer = QTimer()
-        # noinspection PyUnresolvedReferences
         self.timer.timeout.connect(self._update)
 
     def add_curve(self, curve: ColouredCurve):
@@ -222,7 +237,7 @@ class MonitoringGraph(pg.PlotItem):
             data = curve_def.get_data()
             time_curve.append_data(data.value, data.timestamp)
 
-    def start(self, interval_hz: int = config.PARAMETERS.refresh_rate_hz):
+    def start(self, interval_hz: int = config.PARAMETERS.plot_refresh_rate_hz):
         self.timer.start(round(1000 / interval_hz))
 
 

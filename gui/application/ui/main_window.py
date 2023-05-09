@@ -4,9 +4,9 @@ import configuration as config
 from typing import Literal, Callable
 from pathlib import Path
 from application.communication.device import BluetoothDevice
-from application.communication.interface import DataInterfaceDefinition, StampedData, DataInterface
+from application.communication.interface import StampedData, DataInterface
 from application.helper import program_uptime
-from application.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict, ColouredCurve
+from application.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from application.concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
 from application.ui.monitoring_window import MonitoringWindow
 from application.qml.widget import SetpointSlider, ParameterSection, StatusSection
@@ -52,10 +52,6 @@ class MinSegGUI(QMainWindow):
         self.bt_connect_progress_bar.setRange(0, 0)
         self.bt_connect_label = QLabel("Connecting ...")
 
-        self.status_section = StatusSection(self.ui.status_frame, 0, 0, False, 0)
-        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters", "variable"].items()})
-        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
-
         self.ui.actionNewMonitor.triggered.connect(self.on_open_monitor)
         self.ui.actionConnect.triggered.connect(self.on_bt_connect)
         self.ui.actionDisconnect.triggered.connect(self.on_bt_disconnect)
@@ -69,30 +65,26 @@ class MinSegGUI(QMainWindow):
         self.bt_device.rx_data.execute_when_set("calibrated", self.on_calibrated)
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
+        # Curve definitions
+        CurveLibrary.add_definition("POS_SETPOINT_MM", CurveDefinition("pos_setpoint_mm", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
+        CurveLibrary.parse_data_interface(self.bt_device.rx_data)
+
+        # Add qml sections
+        self.status_section = StatusSection(self.ui.status_frame, 0, 0, False, 0)
+        self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters", "variable"].items()})
+        self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
+
         # TX interface connections
-        self.setpoint_slider.value_changed.connect(lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), self.bt_device.NotConnectedError, "Failed to Send Setpoint"))
+        self.setpoint_slider.value_changed.connect(
+            lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), self.bt_device.NotConnectedError, "Failed to Send Setpoint")
+        )
         self.status_section.control_switch_state_changed.connect(self.on_control_state_change)
         self.parameter_section.last_change_changed.connect(lambda changed: self.update_parameters("variable", changed))
 
-        # Curve definitions
-        CurveLibrary.add_definition("POSITION_SETPOINT", CurveDefinition("pos_setpoint_mm", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
-
-        def add_interface_curve_candidates(accessor: list[str], definition: DataInterfaceDefinition):
-            for key, val in definition.items():
-                _accessor = accessor + [key]
-                if val in [float, int, bool]:
-                    CurveLibrary.add_definition('/'.join(_accessor).upper(), CurveDefinition('/'.join(_accessor), partial(self.bt_device.rx_data.get, tuple(_accessor))))
-                elif isinstance(val, DataInterfaceDefinition):
-                    add_interface_curve_candidates(_accessor, val)
-
-        add_interface_curve_candidates([], self.bt_device.rx_data.definition)
-
-        # Add graphs
+        # Add graphs to overview
+        setpoint_graph_curves = ["POS_SETPOINT_MM", "OBSERVER/POSITION/S_MM"]
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.plot_overview)
-        overview_curves = CurveLibrary.colorize({CurveLibrary.definitions("CONTROL/MOTOR"), CurveLibrary.definitions("CONTROL/CYCLE_US")})
-        for index, (curve, color) in enumerate(overview_curves.items()):
-            self.graphs[index] = MonitoringGraph(curves=[ColouredCurve(curve, color)])
-            self.graphs[index].start()
+        self.graphs[0] = MonitoringGraph(curves=CurveLibrary.colorize(setpoint_graph_curves))
 
     def do_catch_ex_in_statusbar(self, do: Callable[[], None], catch: type[Exception] | list[type[Exception]], header: str = None):
         prepend = ""
@@ -133,6 +125,13 @@ class MinSegGUI(QMainWindow):
 
         # Start receiving
         self.bt_receive_task.start()
+
+        # Start plotting
+        self.status_section.scheduled_control_cycle_time.start()
+        for graph in self.graphs.values():
+            graph.start()
+        for monitor_win in self.monitors:
+            monitor_win.start_plotting()
 
         self.ui.actionTransmitState.trigger()
 

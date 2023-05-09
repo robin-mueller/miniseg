@@ -11,7 +11,7 @@ GridLayout {
     columnSpacing: 15
     anchors.fill: parent
 
-    readonly property int leftWidth: 150
+    readonly property int leftWidth: 140
     readonly property int titleSize: 14
     readonly property int textSize: 12
 
@@ -94,6 +94,7 @@ GridLayout {
     Item {
         Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
+        Layout.rowSpan: 2
 
         Text {
             text: "Controller"
@@ -111,6 +112,21 @@ GridLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
 
+        Text {
+            id: header1
+
+            text: "State:"
+            color: Theme.foreground
+            font {
+                pixelSize: root.textSize
+                bold: true
+            }
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
         Switch {
             id: controller_switch
 
@@ -118,7 +134,8 @@ GridLayout {
             onToggled: backend.control_switch_state = checked
 
             anchors {
-                left: parent.left
+                left: header1.right
+                leftMargin: root.columnSpacing
                 verticalCenter: parent.verticalCenter
             }
             height: indicator.height
@@ -145,11 +162,49 @@ GridLayout {
 
         Text {
             text: controller_switch.checked ? "Active" : "Idle"
-            font.pixelSize: root.textSize
-            horizontalAlignment: Text.AlignHCenter
+            font {
+                pixelSize: root.textSize
+                family: Theme.number_font_family
+            }
             color: controller_switch.checked ? Theme.primary : Theme.foreground
             anchors {
                 left: controller_switch.right
+                leftMargin: root.columnSpacing
+                verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    Item {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+
+        Text {
+            id: header2
+
+            text: "Cycle:"
+            color: Theme.foreground
+            font {
+                pixelSize: root.textSize
+                bold: true
+            }
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Text {
+            id: cycleNum
+
+            text: Number(backend.control_cycle_time).toLocaleString(Qt.locale("en_US"), "f", 3) + " ms"
+            color: Theme.foreground
+            font {
+                pixelSize: root.textSize
+                family: Theme.number_font_family
+            }
+            anchors {
+                left: header2.right
                 leftMargin: root.columnSpacing
                 verticalCenter: parent.verticalCenter
             }

@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls.Fusion
 import Configuration
-
 //import "./dummy"
+
 Item {
     Label {
         text: "Position Setpoint [cm]"
@@ -17,7 +17,7 @@ Item {
     Item {
         id: tickScale
 
-        property int rangeCentiMeter: 60
+        property int rangeCentiMeter: 90
         property int minorInterval: 5
         property int majorInterval: 3
         property int majorTickWidth: 4
@@ -55,7 +55,10 @@ Item {
 
                 Label {
                     text: (index - (tickScale.totalTicks - 1) / 2) * tickScale.minorInterval
-                    font.pixelSize: tick.major ? 14 : 12
+                    font {
+                        pixelSize: tick.major ? 14 : 11
+                        family: Theme.number_font_family
+                    }
                     color: tick.major ? Theme.primary : Theme.foreground
                     anchors {
                         centerIn: tick
