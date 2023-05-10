@@ -12,8 +12,9 @@ from PySide6.QtCore import Qt, QCoreApplication
 
 
 if __name__ == "__main__":
+    QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # Must be set before the application is created
+
     app = QApplication(sys.argv)
-    QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     QQuickWindow.setGraphicsApi(QSGRendererInterface.OpenGLRhi)
     QFontDatabase.addApplicationFont(":/font/application/assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
     qdarktheme.setup_theme(
