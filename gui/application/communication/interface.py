@@ -116,7 +116,7 @@ class DataInterfaceDefinition(UserDict):
 @dataclass(frozen=True, eq=True)
 class StampedData:
     value: any
-    timestamp: float
+    timestamp: float | None
 
 
 DataInterfaceType = TypeVar('DataInterfaceType')
@@ -162,7 +162,7 @@ class DataInterface(UserDict):
             if isinstance(val, DataInterfaceDefinition):
                 self.data[key] = DataInterface(val, stamper)
             elif isinstance(val, type):
-                self.data[key] = StampedData(val(), 0)  # Initialize by default value
+                self.data[key] = StampedData(val(), None)  # Initialize by default value and None timestamp to indicate that data has not been received.
             else:
                 raise TypeError(f"Wrong value type: {type(val)}! Only InterfaceDefinition and types allowed.")
 

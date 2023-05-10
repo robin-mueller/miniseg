@@ -7,7 +7,7 @@ from application.communication.device import BluetoothDevice
 from application.communication.interface import StampedData, DataInterface
 from application.helper import program_uptime
 from application.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
-from application.concurrent import ConcurrentTask, BTConnectWorker, BTReceiveWorker
+from application.concurrent import ConcurrentTask
 from application.ui.monitoring_window import MonitoringWindow
 from application.qml.widget import SetpointSlider, ParameterSection, StatusSection
 from functools import partial
@@ -34,19 +34,16 @@ class MinSegGUI(QMainWindow):
         # Bluetooth data
         self.bt_device = BluetoothDevice(config.HC06_BLUETOOTH_ADDRESS)
         self.bt_connect_task = ConcurrentTask(
-            BTConnectWorker,
             self.bt_device.connect,
             on_success=self.on_bt_connected,
             on_failed=self.on_bt_connection_failed
         )
         self.bt_receive_task = ConcurrentTask(
-            BTReceiveWorker,
             self.bt_device.receive,
             on_success=self.on_bt_received,
             on_failed=self.ui.actionDisconnect.trigger,
             repeat_ms=0
         )
-        self.bt_receive_time: QTime = self.start_time
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
@@ -73,6 +70,8 @@ class MinSegGUI(QMainWindow):
         self.status_section = StatusSection(self.ui.status_frame, 0, 0, False, 0)
         self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters", "variable"].items()})
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
+        self.bt_receive_task.started.connect(self.status_section.scheduled_control_cycle_time.start)
+        self.bt_receive_task.stopped.connect(self.status_section.scheduled_control_cycle_time.stop)
 
         # TX interface connections
         self.setpoint_slider.value_changed.connect(
@@ -82,9 +81,14 @@ class MinSegGUI(QMainWindow):
         self.parameter_section.last_change_changed.connect(lambda changed: self.update_parameters("variable", changed))
 
         # Add graphs to overview
-        setpoint_graph_curves = ["POS_SETPOINT_MM", "OBSERVER/POSITION/S_MM"]
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.plot_overview)
-        self.graphs[0] = MonitoringGraph(curves=CurveLibrary.colorize(setpoint_graph_curves))
+        for index, curve_names in enumerate([
+            ["POS_SETPOINT_MM", "OBSERVER/POSITION/S_MM"],
+        ]):
+            self.graphs[index] = MonitoringGraph(
+                start_signal=self.bt_receive_task.started, stop_signal=self.bt_receive_task.stopped,
+                curves=CurveLibrary.colorize(curve_names)
+            )
 
     def do_catch_ex_in_statusbar(self, do: Callable[[], None], catch: type[Exception] | list[type[Exception]], header: str = None):
         prepend = ""
@@ -126,13 +130,6 @@ class MinSegGUI(QMainWindow):
         # Start receiving
         self.bt_receive_task.start()
 
-        # Start plotting
-        self.status_section.scheduled_control_cycle_time.start()
-        for graph in self.graphs.values():
-            graph.start()
-        for monitor_win in self.monitors:
-            monitor_win.start_plotting()
-
         self.ui.actionTransmitState.trigger()
 
     def on_bt_connection_failed(self, exception: Exception):
@@ -144,7 +141,8 @@ class MinSegGUI(QMainWindow):
 
     def on_bt_disconnect(self):
         self.bt_receive_task.stop()
-        self.status_section.control_switch_state = False  # This assignment will throw out a status bar error message but it won't be visible as it is overwritten immediately
+        self.status_section.control_switch_state = False
+
         self.bt_device.disconnect()
         self.ui.actionConnect.setEnabled(True)
         self.ui.actionDisconnect.setEnabled(False)
@@ -156,6 +154,7 @@ class MinSegGUI(QMainWindow):
         self.status_section.connection_state = 0
         self.status_section.calibration_state = 0
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
+        self.status_section.control_cycle_time = 0.0
 
     def on_bt_received(self, received: bytes):
         if not received:
@@ -181,7 +180,7 @@ class MinSegGUI(QMainWindow):
             return
 
     def on_open_monitor(self):
-        new_monitor = MonitoringWindow()
+        new_monitor = MonitoringWindow(self.bt_receive_task.is_active, self.bt_receive_task.started, self.bt_receive_task.stopped)
         new_monitor.destroyed.connect(lambda: self.monitors.remove(new_monitor))
         self.monitors.append(new_monitor)
         new_monitor.show()
@@ -230,8 +229,7 @@ class MinSegGUI(QMainWindow):
     def closeEvent(self, event: QCloseEvent):
         for monitor in self.monitors:
             monitor.close()
-        self.bt_receive_task.stop()
-        self.bt_device.disconnect()
+        self.on_bt_disconnect()
 
         # Stop qml engines before backends are destroyed to prevent errors
         self.status_section.widget.deleteLater()

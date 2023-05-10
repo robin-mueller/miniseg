@@ -10,8 +10,8 @@ PARAMETERS_DIR = Path(__file__).parent.parent / "data" / "parameters"
 
 class Parameters(QObject):
     @Property(int, constant=True)
-    def plot_refresh_rate_hz(self):
-        return 20
+    def plot_update_rate_ms(self):
+        return 50
 
 
 class Theme(QObject):

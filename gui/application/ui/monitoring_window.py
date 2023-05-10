@@ -11,12 +11,17 @@ from application.plotting import MonitoringGraph, GraphDict, CurveLibrary, Curve
 from resources.monitoring_window_ui import Ui_MonitoringWindow
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QFileDialog
-from PySide6.QtCore import Qt, QTime
+from PySide6.QtCore import Qt, QTime, SignalInstance
 
 
 class MonitoringWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, currently_receiving: bool, receive_start_signal: SignalInstance, receive_stop_signal: SignalInstance):
         super().__init__()
+        self.rx_start_sig = receive_start_signal
+        self.rx_stop_sig = receive_stop_signal
+        receive_start_signal.connect(lambda: self.set_allow_plot_start(True))
+        receive_stop_signal.connect(lambda: self.set_allow_plot_start(False))
+        self.allow_plot_start = currently_receiving
         self.recording_start: Optional[QTime] = None
         self.keep_menu_open_filter = KeepMenuOpen(self)
 
@@ -32,9 +37,8 @@ class MonitoringWindow(QMainWindow):
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.graph_layout)
         self.add_graph()
 
-    def start_plotting(self):
-        for graph in self.graphs.values():
-            graph.start()
+    def set_allow_plot_start(self, state: bool):
+        self.allow_plot_start = state
 
     def update_curve_colors(self):
         curve_defs: list[CurveDefinition] = list(itertools.chain(*[graph.curves_dict.keys() for graph in self.graphs.values()]))
@@ -71,7 +75,9 @@ class MonitoringWindow(QMainWindow):
             action.setCheckable(True)
             action.toggled.connect(partial(toggle_curve, CurveLibrary.definitions(name)))
 
-        self.graphs[graph_id] = MonitoringGraph(title=graph_title)
+        self.graphs[graph_id] = MonitoringGraph(start_signal=self.rx_start_sig, stop_signal=self.rx_stop_sig, title=graph_title)
+        if self.allow_plot_start:
+            self.graphs[graph_id].start_updating()
 
     def start_recording(self):
         if any([graph.curves_dict for graph in self.graphs.values()]):  # Only start recording if any curves have been defined

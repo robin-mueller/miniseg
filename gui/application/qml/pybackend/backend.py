@@ -3,44 +3,44 @@ from PySide6.QtQuickWidgets import QQuickWidget
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
 
-class QMLPropertyMeta(type(QObject)):
+class NotifiedPropertyMeta(type(QObject)):
     """
     Reduces the definitions necessary to build a working QML backend class.
     The usual approach (https://doc.qt.io/qtforpython-6/PySide6/QtCore/Property.html) is to manually define instances of PySide6.QtCore.Property, getters, setters and associated notifier signals.
-    Using this metaclass the signals as well as getters and setters are defined automatically. For this purpose, the QMLProperty must be used as a replacement of PySide6.QtCore.Property.
+    Using this metaclass the signals as well as getters and setters are defined automatically. For this purpose, the NotifiedProperty must be used as a replacement of PySide6.QtCore.Property.
 
     \t**Important Note**:\n
     This metaclass must only be used in classes that are inheriting from PySide6.QtCore.QObject.
-    A dynamically created **signal is named according to the QMLProperty** object name **followed by '_changed'**.
+    A dynamically created **signal is named according to the NotifiedProperty** object name **followed by '_changed'**.
     They can be connected to exactly like in the official approach. The only caveat is that attribute/type hints of IDEs will not work, since they are defined dynamically.
     """
 
     def __new__(cls, name, bases, attrs):
         for key in list(attrs.keys()):
             attr = attrs[key]
-            if not isinstance(attr, QMLProperty):
+            if not isinstance(attr, NotifiedProperty):
                 continue
 
             notifier = Signal(attr.type_)
             attrs[f'{key}_changed'] = notifier
-            attrs[key] = QMLPropertyInstace(type_=attr.type_, name=key, notifier=notifier)
+            attrs[key] = NotifiedPropertyInstace(type_=attr.type_, name=key, notifier=notifier)
 
         return super().__new__(cls, name, bases, attrs)
 
 
-class QMLProperty:
+class NotifiedProperty:
     def __init__(self, type_: type):
         """
-        QMLProperty definition. This class is supposed to be instantiated as a class attribute in a class that defines QMLPropertyMeta as its metaclass.
+        NotifiedProperty definition. This class is supposed to be instantiated as a class attribute in a class that defines NotifiedPropertyMeta as its metaclass.
         It is a replacement for the PySide6.QtCore.Property class of PySide6.
-        Instances of this class will be replaced with QMLPropertyInstace by the QMLPropertyMeta metaclass.
+        Instances of this class will be replaced with NotifiedPropertyInstace by the NotifiedPropertyMeta metaclass.
 
         \t**Important Note**:\n
         The getters and setters of the property require a reference to a variable that stores the property's actual value.
         Usually, such a variable is instantiated in the property's parent class initializer as its instance attribute.
-        However, since QMLProperty objects must be class attributes, those objects and their associated notifier signals are **shared by all instances of the parent class**.
-        Consequently, the property value should also be held by the QMLProperty object itself, which is why it is implemented like this in QMLPropertyInstace.
-        So keep in mind: Classes that use QMLPropertyMeta metaclass and QMLProperty objects are meant to be singletons!
+        However, since NotifiedProperty objects must be class attributes, those objects and their associated notifier signals are **shared by all instances of the parent class**.
+        Consequently, the property value should also be held by the NotifiedProperty object itself, which is why it is implemented like this in NotifiedPropertyInstace.
+        So keep in mind: Classes that use NotifiedPropertyMeta metaclass and NotifiedProperty objects are meant to be singletons!
         There is no need for an external instance attribute that holds the property's value. In fact, it leads to confusion concerning the actual nature of the notifier signals.
 
         :param type_: The type that is associated with the property.
@@ -48,9 +48,9 @@ class QMLProperty:
         self.type_ = type_
 
 
-class QMLPropertyInstace(Property):
+class NotifiedPropertyInstace(Property):
     """
-    QMLProperty implementation. Refer to QMLProperty for documentation.
+    NotifiedProperty implementation. Refer to NotifiedProperty for documentation.
     """
 
     def __init__(self, type_: type, name: str, notifier: Signal):
@@ -71,17 +71,17 @@ class QMLPropertyInstace(Property):
             signal.emit(value)
 
 
-class QMLWidgetBackend(QObject, metaclass=QMLPropertyMeta):
+class QMLWidgetBackend(QObject, metaclass=NotifiedPropertyMeta):
     def __init__(self, root: QFrame, source: str, size_view_to_root_object=False, **context_properties: any):
         """
         Helper class to initialize quick widget objects from QML file.
-        It incorporates the QMLPropertyMeta metaclass that simplifies the interconnection of QML and Python properties.
+        It incorporates the NotifiedPropertyMeta metaclass that simplifies the interconnection of QML and Python properties.
 
         \t**Usage**:\n
-        Inherit from this class and then specify the properties as class attributes that may be accessed/modified in the QML object and/or in the Python program using QMLProperty.
+        Inherit from this class and then specify the properties as class attributes that may be accessed/modified in the QML object and/or in the Python program using NotifiedProperty.
 
         \t**Important Note:**\n
-        Make sure that the super().__init__() call is made before the QMLProperty objects are accessed, otherwise the programme will crash.
+        Make sure that the super().__init__() call is made before the NotifiedProperty objects are accessed, otherwise the programme will crash.
         This is due to the requirement that QObject has to be initialized before any instances or children of PySide6.QtCore.Property are called.
 
         :param root: The frame that the referred quick widget centers in.

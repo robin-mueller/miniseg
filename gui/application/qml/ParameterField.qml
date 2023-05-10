@@ -42,7 +42,7 @@ Item {
         width: 110
         height: 24
         font {
-            pixelSize: 14
+            pixelSize: 13
             family: Theme.number_font_family
         }
         from: root.from * Math.pow(10, root.decimals)

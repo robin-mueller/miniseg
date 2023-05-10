@@ -7,7 +7,7 @@ from functools import partial
 from typing import Callable, overload
 from dataclasses import dataclass
 from collections import UserDict
-from PySide6.QtCore import QTimer, Signal, QObject
+from PySide6.QtCore import QTimer, Signal, QObject, SignalInstance
 from PySide6.QtGui import QFont
 from .communication.interface import StampedData, DataInterface, DataInterfaceDefinition
 
@@ -100,7 +100,7 @@ class ScheduledValue(QObject):
         self._register_arr = np.array([])
         self._register_timer = QTimer()
         self._register_timer.timeout.connect(lambda: self._register(getter()))
-        self._register_timer.setInterval(round(1000 / config.PARAMETERS.plot_refresh_rate_hz))
+        self._register_timer.setInterval(round(1000 / config.PARAMETERS.plot_update_rate_ms))
         self._publish_value_timer = QTimer()
         self._publish_value_timer.timeout.connect(lambda: self.updated.emit(self._request()))
         self._publish_value_timer.setInterval(interval_ms)
@@ -108,6 +108,10 @@ class ScheduledValue(QObject):
     def start(self):
         self._register_timer.start()
         self._publish_value_timer.start()
+
+    def stop(self):
+        self._register_timer.stop()
+        self._publish_value_timer.stop()
 
     def _register(self, value: float):
         """
@@ -155,30 +159,29 @@ class TimeseriesCurve(pg.PlotDataItem):
     def recording_array(self):
         return self._recording_arr
 
-    def append_data(self, value: float | None, ts: float, *, display=True):
+    def append_data(self, value: float | None, ts: float | None):
         """
         Updates the curve of the plot by appending a new value at the provided frame timestamp ts.
         The initially defined window size in seconds will be respected.
 
         :param value: Value to append to the curve.
         :param ts: Timestamp of the value that indicates the time elapsed since the start of the application.
-        :param display: Only updates the display if set to True. Otherwise, just stores the data.
         """
-        # Initialize timeseries if first time calling
-        _value = np.nan if value is None else value
-        if not self._visible_timeseries.any():
-            t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * config.PARAMETERS.plot_refresh_rate_hz))  # Initial time axis which is subject to change
-            self._visible_timeseries = np.array([t, np.full(t.shape[0], np.nan)])  # Initial values np.nan
+        if ts is not None:
+            # Initialize timeseries if first time calling
+            _value = np.nan if value is None else value
+            if not self._visible_timeseries.any():
+                t = np.linspace(ts - self._window_duration, ts, round(self._window_duration * config.PARAMETERS.plot_update_rate_ms))  # Initial time axis which is subject to change
+                self._visible_timeseries = np.array([t, np.full(t.shape[0], np.nan)])  # Initial values np.nan
 
-        # Extend recording array
-        if self._recording_active:
-            self._recording_arr = np.append(self._recording_arr, [[ts], [_value]], axis=1)
+            # Extend recording array
+            if self._recording_active:
+                self._recording_arr = np.append(self._recording_arr, [[ts], [_value]], axis=1)
 
-        # Extend the timeseries data of the curve
-        self._visible_timeseries = np.append(self._visible_timeseries, [[ts], [_value]], axis=1)
-        while self._visible_timeseries[0, -1] - self._visible_timeseries[0, 0] > self._window_duration:
-            self._visible_timeseries = np.delete(self._visible_timeseries, 0, axis=1)
-        if display:
+            # Extend the timeseries data of the curve
+            self._visible_timeseries = np.append(self._visible_timeseries, [[ts], [_value]], axis=1)
+            while self._visible_timeseries[0, -1] - self._visible_timeseries[0, 0] > self._window_duration:
+                self._visible_timeseries = np.delete(self._visible_timeseries, 0, axis=1)
             self.setData(self._visible_timeseries[0], self._visible_timeseries[1])
 
 
@@ -188,8 +191,16 @@ class MonitoringGraph(pg.PlotItem):
     """
     NUMBER_FONT = QFont(config.THEME.number_font_family)
 
-    def __init__(self, curves: list[ColouredCurve] = None, *, title: str = None, xlabel: str = 'Time elapsed in s', ylabel: str = None, window_size_sec: float = 30, **kwargs):
+    def __init__(self, curves: list[ColouredCurve] = None,
+                 *,
+                 start_signal: SignalInstance = None, stop_signal: SignalInstance = None,
+                 title: str = None, xlabel: str = 'Time elapsed in s', ylabel: str = None,
+                 interval_ms: int = config.PARAMETERS.plot_update_rate_ms,
+                 window_size_sec: float = 30,
+                 **kwargs):
+
         super().__init__(**kwargs)
+
         self.title = title
         self.showGrid(y=True)
         self.addLegend(offset=(1, 1))
@@ -206,8 +217,19 @@ class MonitoringGraph(pg.PlotItem):
             for curve in curves:
                 self.add_curve(curve)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self._update)
+        self._timer = QTimer()
+        self._timer.setInterval(interval_ms)
+        self._timer.timeout.connect(self._update)
+        if start_signal is not None:
+            start_signal.connect(self._timer.start)
+        if stop_signal is not None:
+            stop_signal.connect(self._timer.stop)
+
+    def start_updating(self):
+        self._timer.start()
+
+    def stop_updating(self):
+        self._timer.stop()
 
     def add_curve(self, curve: ColouredCurve):
         if not isinstance(curve, ColouredCurve):
@@ -236,9 +258,6 @@ class MonitoringGraph(pg.PlotItem):
         for curve_def, time_curve in self._curves_dict.items():
             data = curve_def.get_data()
             time_curve.append_data(data.value, data.timestamp)
-
-    def start(self, interval_hz: int = config.PARAMETERS.plot_refresh_rate_hz):
-        self.timer.start(round(1000 / interval_hz))
 
 
 class GraphDict(UserDict):

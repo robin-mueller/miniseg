@@ -1,14 +1,12 @@
 import traceback
 
-from types import NoneType
 from typing import Callable
 from PySide6.QtCore import QTimer, QObject, Signal, QThread
 
 
 class _ConcurrentWorker(QObject):
     """
-    This class provides the structure for concurrent workers but only subclasses allowed.
-    They have to be defined manually because each concurrent worker needs its own signals. They would otherwise be shared.
+    This class provides the structure for concurrent workers.
     """
     success = Signal(object)
     failed = Signal(Exception)
@@ -17,11 +15,6 @@ class _ConcurrentWorker(QObject):
     def __init__(self, work_handle: Callable[[], object]):
         super().__init__()
         self._do_work = work_handle
-
-    def __new__(cls, *args, **kwargs):
-        if cls is _ConcurrentWorker:
-            raise TypeError(f"Only children of '{cls.__name__}' may be instantiated!")
-        return super().__new__(cls, *args, **kwargs)
 
     def run(self):
         try:
@@ -34,32 +27,25 @@ class _ConcurrentWorker(QObject):
             self.finished.emit()
 
 
-class BTConnectWorker(_ConcurrentWorker):
-    success = Signal(NoneType)
-    failed = Signal(Exception)
-    finished = Signal()
-
-
-class BTReceiveWorker(_ConcurrentWorker):
-    success = Signal(bytes)
-    failed = Signal(Exception)
-    finished = Signal()
-
-
-class ConcurrentTask:
+class ConcurrentTask(QObject):
     """
     A persistent handle (meaning the object doesn't have to be reinstantiated every time the task is supposed to start again)
     for a concurrent task using QThread which is defined by the constructor arguments.
-    The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/ and http://blog.debao.me/2013/08/how-to-use-qthread-in-the-right-way-part-1/.
+    The approach used is based on the guide from https://realpython.com/python-pyqt-qthread/ and
+    http://blog.debao.me/2013/08/how-to-use-qthread-in-the-right-way-part-1/.
     """
+    started = Signal()
+    stopped = Signal()
+
     class WorkFailedError(Exception):
         def __init__(self, c: Callable, exception: Exception):
             super().__init__(f"No exception handler was connected but an exception occured during execution of callable '{c.__name__}': \n{''.join(traceback.format_exception(exception))}")
 
-    def __init__(self, worker_class: type[_ConcurrentWorker], work_handle: Callable[[], object], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
+    def __init__(self, work_handle: Callable[[], object], *, on_success: Callable[[any], None] = None, on_failed: Callable[[Exception], None] = None, repeat_ms: int = None):
+        super().__init__()
 
         def create_worker():
-            worker = worker_class(work_handle)
+            worker = _ConcurrentWorker(work_handle)
             if on_success:
                 worker.success.connect(on_success)
             if on_failed:
@@ -78,30 +64,35 @@ class ConcurrentTask:
                 timer.setInterval(repeat_ms)
             return timer
 
-        self.create_worker = create_worker
-        self.create_timer = create_timer
-        self.thread: QThread | None = None
+        self._create_worker = create_worker
+        self._create_timer = create_timer
+        self._thread: QThread | None = None
 
         # References that have to be kept alive for the task to work
         self._worker: _ConcurrentWorker | None = None
         self._timer: QTimer | None = None
 
+    @property
+    def is_active(self):
+        return isinstance(self._thread, QThread)
+
     def start(self):
         """
         Creates the worker thread and starts the task execution.
         """
-        if self.thread is None:
-            self._worker = self.create_worker()
-            self._timer = self.create_timer()
-            self.thread = QThread()
-            self._worker.moveToThread(self.thread)
-            self._timer.moveToThread(self.thread)  # Let timer execute in subthread to reduce signal clutter in main thread when using quick intervals
+        if not self.is_active:
+            self._worker = self._create_worker()
+            self._timer = self._create_timer()
+            self._thread = QThread()
+            self._worker.moveToThread(self._thread)
+            self._timer.moveToThread(self._thread)  # Let timer execute in subthread to reduce signal clutter in main thread when using quick intervals
             self._timer.timeout.connect(self._worker.run)
             if self._timer.isSingleShot():
                 self._worker.finished.connect(self.stop)
-            self.thread.started.connect(self._timer.start)
-            self.thread.finished.connect(self._timer.stop)
-            self.thread.start()
+            self._thread.started.connect(self._timer.start)
+            self._thread.finished.connect(self._timer.stop)
+            self._thread.start()
+            self.started.emit()
         else:
             raise RuntimeError("This task is already running!")
 
@@ -110,9 +101,10 @@ class ConcurrentTask:
         If the task is not done yet, this method stops the task and
         blocks the calling thread until the worker has finished.
         """
-        if self.thread:
-            self.thread.quit()
-            self.thread.wait()
-            self.thread = None
+        if self.is_active:
+            self._thread.quit()
+            self._thread.wait()
+            self._thread = None
             self._worker = None
             self._timer = None
+            self.stopped.emit()

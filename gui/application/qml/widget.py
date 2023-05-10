@@ -2,18 +2,18 @@ from typing import Literal
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy
 from application.plotting import CurveLibrary, ScheduledValue
-from application.qml.pybackend import QMLWidgetBackend, QMLProperty, QMLPropertyMeta
+from application.qml.pybackend import QMLWidgetBackend, NotifiedProperty, NotifiedPropertyMeta
         
         
 class StatusSection(QMLWidgetBackend):
     SOURCE = "qrc:/qml/application/qml/Status.qml"
 
-    connection_state = QMLProperty(int)
-    calibration_state = QMLProperty(int)
-    control_switch_state = QMLProperty(bool)
-    control_cycle_time = QMLProperty(float)
-    loaded_param_state = QMLProperty(int)
-    param_file_name = QMLProperty(str)
+    connection_state = NotifiedProperty(int)
+    calibration_state = NotifiedProperty(int)
+    control_switch_state = NotifiedProperty(bool)
+    control_cycle_time = NotifiedProperty(float)
+    loaded_param_state = NotifiedProperty(int)
+    param_file_name = NotifiedProperty(str)
     
     def __init__(self, widget_frame: QFrame, connection_state: Literal[0, 1, 2], calibration_state: Literal[0, 1, 2], control_switch_state: bool, loaded_param_state: Literal[0, 1]):
         super().__init__(widget_frame, self.SOURCE)
@@ -24,19 +24,19 @@ class StatusSection(QMLWidgetBackend):
         self.loaded_param_state = loaded_param_state
         self.param_file_name = "Nothing Loaded"
 
-        self.scheduled_control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value, 1000)
+        self.scheduled_control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value * 1e-3, 1000)
         self.scheduled_control_cycle_time.updated.connect(self.set_control_cycle_time)
 
     def set_control_cycle_time(self, value: float):
         self.control_cycle_time = value
 
 
-class ParameterSection(QObject, metaclass=QMLPropertyMeta):
+class ParameterSection(QObject, metaclass=NotifiedPropertyMeta):
     SOURCE = "qrc:/qml/application/qml/Parameters.qml"
 
     # Two signals are used to respect the Qt Quick Property uni-directional implementation.
-    loaded = QMLProperty(dict)  # Outgoing
-    last_change = QMLProperty(dict)  # Incoming
+    loaded = NotifiedProperty(dict)  # Outgoing
+    last_change = NotifiedProperty(dict)  # Incoming
 
     def __init__(self, widget_frame: QFrame, **available_parameters: list[str]):
         super().__init__()
@@ -58,7 +58,7 @@ class ParameterSection(QObject, metaclass=QMLPropertyMeta):
 
 class SetpointSlider(QMLWidgetBackend):
     SOURCE = "qrc:/qml/application/qml/SetpointSlider.qml"
-    value = QMLProperty(int)
+    value = NotifiedProperty(int)
 
     def __init__(self, widget_frame: QFrame, value: int):
         super().__init__(widget_frame, self.SOURCE)
