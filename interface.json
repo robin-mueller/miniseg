@@ -36,7 +36,6 @@
     "calibration": "bool",
     "control_state": "bool",
     "pos_setpoint_mm": "double",
-    "reset_pos": "bool",
     "parameters": {
       "variable": {
         "General": {

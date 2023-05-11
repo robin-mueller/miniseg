@@ -5,14 +5,13 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 900
+#define JSON_DOC_SIZE_RX 882
 #define JSON_DOC_SIZE_TX 184
 
 struct ReceiveInterface {
 bool calibration;
 bool control_state;
 double pos_setpoint_mm;
-bool reset_pos;
 struct {
 struct {
 struct {

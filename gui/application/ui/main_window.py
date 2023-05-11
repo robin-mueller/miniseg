@@ -219,11 +219,8 @@ class MinSegGUI(QMainWindow):
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
 
     def on_control_state_change(self, state: bool):
-        if state:
-            self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
-        else:
-            self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=False, reset_pos=True), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
-            self.bt_device.tx_data["reset_pos"] = False
+        self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=state), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
+        if not state:
             self.setpoint_slider.value = 0
 
     def closeEvent(self, event: QCloseEvent):

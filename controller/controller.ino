@@ -33,8 +33,6 @@ void setup() {
 }
 
 void loop() {
-  static double xi = 0;  // Integral action state for position control
-
   // Receive available data
   switch (comm.async_receive()) {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
@@ -67,12 +65,6 @@ void loop() {
 
   if (comm.rx_data.calibration) calibrate_mpu();
 
-  if (comm.rx_data.reset_pos) {
-    wheel_angle_rad.reset();
-    xi = 0;
-    comm.rx_data.reset_pos = false;
-  }
-
   mpu.update();  // This has to be called as frequent as possible to keep up with the configured MPU FIFO buffer sample rate
 
   static uint32_t control_cycle_start_us = micros();
@@ -92,6 +84,7 @@ void loop() {
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
 
     static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
+    static double xi = 0;                          // Integral action state for position control
     double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
     // Correct state estimate
@@ -108,7 +101,13 @@ void loop() {
     double r_rad = comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
 
     double u_bal = 0, u_pos = 0;
-    if (comm.rx_data.control_state) calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, r_rad);
+    if (comm.rx_data.control_state) {
+      calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, r_rad);
+    } else {
+      // Reset positional variables to be able to restart the control from the inital position
+      wheel_angle_rad.reset();
+      xi = 0;
+    }
 
     double u = u_bal + u_pos;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
