@@ -83,7 +83,7 @@ class MinSegGUI(QMainWindow):
         # Add graphs to overview
         self.graphs: UserDict[int, MonitoringGraph] = GraphDict(self.ui.plot_overview)
         for index, curve_names in enumerate([
-            ["POS_SETPOINT_MM", "OBSERVER/POSITION/S_MM"],
+            ["POS_SETPOINT_MM", "OBSERVER/POSITION/Z_MM"],
         ]):
             self.graphs[index] = MonitoringGraph(
                 start_signal=self.bt_receive_task.started, stop_signal=self.bt_receive_task.stopped,

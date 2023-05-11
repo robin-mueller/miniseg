@@ -102,7 +102,7 @@ void loop() {
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
-    comm.tx_data.observer.position.s_mm = WHEEL_RAD_TO_MM * x4_corr;
+    comm.tx_data.observer.position.z_mm = WHEEL_RAD_TO_MM * x4_corr;
 
     // Wheel angle setpoint
     double r_rad = comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
@@ -262,9 +262,9 @@ int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
   int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
 
   // Motor deadzone compensation
-  if (abs(motor_val) < comm.rx_data.parameters.variable.General.r_stop) motor_val = 0;
+  if (abs(motor_val) < comm.rx_data.parameters.variable.General.m_stop) motor_val = 0;
   else {
-    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.variable.General.r_start, UINT8_MAX);
+    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.variable.General.m_start, UINT8_MAX);
     if (motor_val < 0) motor_val = -(int16_t)abs_deadzone_compensated_motor_val;
     else motor_val = abs_deadzone_compensated_motor_val;
   }

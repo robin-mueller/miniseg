@@ -18,8 +18,8 @@ struct {
 struct {
 uint16_t h_ms;
 double alpha_off;
-uint8_t r_stop;
-uint8_t r_start;
+uint8_t m_stop;
+uint8_t m_start;
 } General;
 struct {
 double k1;
@@ -107,7 +107,7 @@ double angle_rad;
 double vel_rad_s;
 } tilt;
 struct {
-double s_mm;
+double z_mm;
 } position;
 } observer;
 struct {

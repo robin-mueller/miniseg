@@ -3,8 +3,8 @@
     "General": {
       "h_ms": 10,
       "alpha_off": 0.01,
-      "r_stop": 10,
-      "r_start": 35
+      "m_stop": 10,
+      "m_start": 30
     },
     "BalanceControl": {
       "k1": -15.301,

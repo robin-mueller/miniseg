@@ -20,7 +20,7 @@
         "vel_rad_s": "double"
       },
       "position": {
-        "s_mm": "double"
+        "z_mm": "double"
       }
     },
     "control": {
@@ -42,8 +42,8 @@
         "General": {
           "h_ms": "uint16_t",
           "alpha_off": "double",
-          "r_stop": "uint8_t",
-          "r_start": "uint8_t"
+          "m_stop": "uint8_t",
+          "m_start": "uint8_t"
         },
         "BalanceControl": {
           "k1": "double",
