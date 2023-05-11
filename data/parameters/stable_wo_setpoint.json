@@ -2,8 +2,8 @@
   "variable": {
     "General": {
       "h_ms": 10,
-      "alpha_off": 0.01,
-      "m_stop": 10,
+      "alpha_off": -0.012,
+      "m_stop": 1,
       "m_start": 30
     },
     "BalanceControl": {

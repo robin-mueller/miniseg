@@ -2,7 +2,7 @@
   "variable": {
     "General": {
       "h_ms": 10,
-      "alpha_off": 0.012,
+      "alpha_off": -0.012,
       "m_stop": 1,
       "m_start": 30
     },
@@ -12,7 +12,7 @@
       "k3": -0.945
     },
     "PositionControl": {
-      "k4": -0.387,
+      "k4": 0.0,
       "ki": 0.0
     }
   },

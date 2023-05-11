@@ -2,7 +2,7 @@
   "variable": {
     "General": {
       "h_ms": 10,
-      "alpha_off": 0.012,
+      "alpha_off": -0.012,
       "m_stop": 1,
       "m_start": 30
     },
@@ -13,7 +13,7 @@
     },
     "PositionControl": {
       "k4": -0.22,
-      "ki": -0.12
+      "ki": 0.12
     }
   },
   "inferred": {

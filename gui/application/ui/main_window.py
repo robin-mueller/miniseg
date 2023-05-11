@@ -192,7 +192,15 @@ class MinSegGUI(QMainWindow):
             with path.open() as file:
                 parameters = json.load(file)
             self.status_section.param_file_name = path.name
-            self.parameter_section.loaded = parameters["variable"]  # Signal connection of this property will update tx data automatically after this assignment
+
+            # The signal connection of this property will update tx data automatically after this assignment.
+            # However, if the same file is loaded, no signal would be emitted.
+            # To make sure the changed number fields are also reset to the loaded values in such a case, the signal has to be emitted manually.
+            self.parameter_section.blockSignals(True)
+            self.parameter_section.loaded = parameters["variable"]
+            self.parameter_section.blockSignals(False)
+            self.parameter_section.loaded_changed.emit(parameters["variable"])  # Emit the signal now manually
+
             self.update_parameters("inferred", parameters["inferred"])
             self.send_parameters()
 

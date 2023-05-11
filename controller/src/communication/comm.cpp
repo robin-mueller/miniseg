@@ -36,7 +36,7 @@ void Communication::setup() {
   Experiments suggest, that more frequent interrupting results in a higher receive success rate.
   */
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    OCR4A = (uint16_t)40;  // This value should be bewteen 1 and 78 when using prescale factor 1024
+    OCR4A = (uint16_t)30;  // This value should be bewteen 1 and 78 when using prescale factor 1024
   }
 #endif
 

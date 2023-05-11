@@ -95,10 +95,10 @@ void loop() {
     comm.tx_data.observer.tilt.angle_rad = x2_corr;
     comm.tx_data.observer.wheel.vel_rad_s = x3_corr;
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
-    comm.tx_data.observer.position.z_mm = WHEEL_RAD_TO_MM * x4_corr;
+    comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
     // Wheel angle setpoint
-    double r_rad = comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
+    double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
 
     double u_bal = 0, u_pos = 0;
     if (comm.rx_data.control_state) {
@@ -240,7 +240,7 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
 void update_position_state(double &xi, double &x4, double &r_rad) {
   double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
 
-  xi += h * (x4 - r_rad);
+  xi += h * (r_rad - x4);
 }
 
 void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi, double &r_rad) {
@@ -250,30 +250,30 @@ void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double 
   double &k4 = comm.rx_data.parameters.variable.PositionControl.k4;
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
-  u_bal = -k1 * x1 - k2 * (x2 + comm.rx_data.parameters.variable.General.alpha_off) - k3 * x3;
-  u_pos = -k4 * (x4 - r_rad) - ki * xi;
+  const double alpha_set = 0;  // Angle setpoint
+  u_bal = -k1 * x1 + k2 * (alpha_set + comm.rx_data.parameters.variable.General.alpha_off - x2) - k3 * x3;
+  u_pos = k4 * (r_rad - x4) - ki * xi;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
-  long scale_amp = pow(10, decimals);
-  long volt_int_max = round(saturation * scale_amp);
-  long volt_int = constrain(round(volt * scale_amp), -volt_int_max, volt_int_max);  // map does integer calculations, so we increase the resolution by scaling up the double value by scale_amp
-  int16_t motor_val = map(volt_int, -volt_int_max, volt_int_max, -UINT8_MAX, UINT8_MAX);
+  const long scale_amp = pow(10, decimals);
+  const long volt_int_max = round(saturation * scale_amp);
+  const long volt_int = constrain(round(volt * scale_amp), -volt_int_max, volt_int_max);  // map does integer calculations, so we increase the resolution by scaling up the double value by scale_amp
+  uint8_t motor_val = map(abs(volt_int), 0, volt_int_max, 0, UINT8_MAX);
 
   // Motor deadzone compensation
-  if (abs(motor_val) < comm.rx_data.parameters.variable.General.m_stop) motor_val = 0;
-  else {
-    uint8_t abs_deadzone_compensated_motor_val = map(abs(motor_val), 0, UINT8_MAX, comm.rx_data.parameters.variable.General.m_start, UINT8_MAX);
-    if (motor_val < 0) motor_val = -(int16_t)abs_deadzone_compensated_motor_val;
-    else motor_val = abs_deadzone_compensated_motor_val;
-  }
+  uint8_t &stop_threshold = comm.rx_data.parameters.variable.General.m_stop;
+  uint8_t &start_threshold = comm.rx_data.parameters.variable.General.m_start;
+  motor_val = motor_val < stop_threshold ? 0 : map(motor_val, 0, UINT8_MAX, start_threshold, UINT8_MAX);
 
-  if (motor_val < 0) {
-    analogWrite(PD4, -motor_val);
+  // Positive means to rotate in positive direction
+  if (volt < 0) {
+    analogWrite(PD4, motor_val);
     analogWrite(PD5, 0);
+    return -motor_val;
   } else {
     analogWrite(PD4, 0);
     analogWrite(PD5, motor_val);
+    return motor_val;
   }
-  return motor_val;
 }
