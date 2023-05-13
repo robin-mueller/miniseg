@@ -169,8 +169,6 @@ class MinSegGUI(QMainWindow):
         self.ui.actionStartCalibration.setEnabled(False)
 
     def on_calibrated(self, calibrated: StampedData):
-        print(self.bt_device.tx_data["calibration"].value is True)
-        print(self.bt_device.tx_data["calibration"] is True)
         if self.status_section.calibration_state == 0 and self.bt_device.tx_data["calibration"].value is True and calibrated.value is False:
             self.status_section.calibration_state = 1
             return
