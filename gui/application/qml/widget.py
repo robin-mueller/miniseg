@@ -44,7 +44,7 @@ class StatusSection(QMLWidgetBackend):
     def on_receive_stop(self):
         self._control_cycle_time_us.stop()
         self._bytes_received.stop()
-        self.receive_size = 0.0
+        self.receive_size = 0
         self.control_cycle_time_ms = 0.0
 
 
