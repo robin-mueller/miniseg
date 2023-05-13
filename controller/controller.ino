@@ -33,6 +33,9 @@ void setup() {
 }
 
 void loop() {
+  bool prev_control_state = comm.rx_data.control_state;
+  static bool reset_to_initial_position = true;
+
   // Receive available data
   switch (comm.async_receive()) {
     case Communication::ReceiveCode::NO_DATA_AVAILABLE:
@@ -63,6 +66,11 @@ void loop() {
       break;
   }
 
+  // Reset positional variables when control state is set to true to be able to restart the control from the inital position
+  if (prev_control_state == false && comm.rx_data.control_state == true) {
+    reset_to_initial_position = true;  // This flag will be reset once the asynchronous control cycle became aware of the state change
+  }
+
   if (comm.rx_data.calibration) calibrate_mpu();
 
   mpu.update();  // This has to be called as frequent as possible to keep up with the configured MPU FIFO buffer sample rate
@@ -71,6 +79,17 @@ void loop() {
   if (millis() > control_cycle_start_us * 1e-3 + comm.rx_data.parameters.variable.General.h_ms) {
     comm.tx_data.control.cycle_us = micros() - control_cycle_start_us;
     control_cycle_start_us = micros();
+
+    // System states
+    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
+    static double xi = 0;                          // Integral action state for position control
+    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
+
+    if (reset_to_initial_position) {
+      wheel_angle_rad.reset();
+      xi = 0;
+      reset_to_initial_position = false;
+    }
 
     // Sensor readings
     comm.tx_data.sensor.wheel.angle_rad = wheel_angle_rad();
@@ -82,10 +101,6 @@ void loop() {
     double &y1 = comm.tx_data.sensor.tilt.vel_rad_s;
     double &y2 = comm.tx_data.sensor.tilt.angle_rad;
     double &y3 = comm.tx_data.sensor.wheel.angle_rad;
-
-    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
-    static double xi = 0;                          // Integral action state for position control
-    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
     // Correct state estimate
     correct_state_estimation(x1_corr, x2_corr, x3_corr, x4_corr, x1, x2, x3, x4, y1, y2, y3);
@@ -103,10 +118,6 @@ void loop() {
     double u_bal = 0, u_pos = 0;
     if (comm.rx_data.control_state) {
       calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, r_rad);
-    } else {
-      // Reset positional variables to be able to restart the control from the inital position
-      wheel_angle_rad.reset();
-      xi = 0;
     }
 
     double u = u_bal + u_pos;
