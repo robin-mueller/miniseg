@@ -17,7 +17,7 @@ GridLayout {
     readonly property int headerBorderDistance: columnSpacing
     readonly property int headerBorderWidth: 2
     readonly property int headerBorderHeightMargin: 0
-    readonly property int headerSpacerHeight: 10
+    readonly property int headerSpacerHeight: 8
 
     property alias control_state: controller_switch.checked
 
@@ -41,7 +41,7 @@ GridLayout {
         Rectangle {
             width: root.headerBorderWidth
             height: parent.height - 2 * root.headerBorderHeightMargin
-            color: Theme.foreground
+            color: backend.connection_state === 2 ? Theme.primary : Theme.border
             anchors {
                 horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
@@ -92,7 +92,7 @@ GridLayout {
         Text {
             id: byte_rate
 
-            text: Number(backend.byte_rate_s).toLocaleString(Qt.locale("en_US"), "f", 0) + " B/s"
+            text: Number(backend.receive_size).toLocaleString(Qt.locale("en_US"), "f", 0) + " Bytes"
             color: Theme.foreground
             font {
                 pixelSize: root.textSize
@@ -130,7 +130,7 @@ GridLayout {
         Rectangle {
             width: root.headerBorderWidth
             height: parent.height - 2 * root.headerBorderHeightMargin
-            color: Theme.foreground
+            color: backend.calibration_state === 2 ? Theme.primary : Theme.border
             anchors {
                 horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
@@ -184,7 +184,7 @@ GridLayout {
         Rectangle {
             width: root.headerBorderWidth
             height: parent.height - 2 * root.headerBorderHeightMargin
-            color: Theme.foreground
+            color: controller_switch.checked ? Theme.primary : Theme.border
             anchors {
                 horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
@@ -301,7 +301,7 @@ GridLayout {
         Rectangle {
             width: root.headerBorderWidth
             height: parent.height - 2 * root.headerBorderHeightMargin
-            color: Theme.foreground
+            color: backend.loaded_param_state === 1 ? Theme.primary : Theme.border
             anchors {
                 horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter

@@ -29,7 +29,7 @@ Item {
 
         color: Theme.background
         border {
-            color: Theme.foreground
+            color: Theme.border
             width: 2
         }
 
@@ -55,7 +55,7 @@ Item {
         }
 
         Rectangle {
-            color: Theme.foreground
+            color: Theme.border
             anchors {
                 top: parent.bottom
                 topMargin: -parent.radius
@@ -76,7 +76,7 @@ Item {
         }
 
         Rectangle {
-            color: Theme.foreground
+            color: Theme.border
             anchors {
                 top: parent.top
                 bottom: parent.top

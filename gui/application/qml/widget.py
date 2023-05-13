@@ -9,7 +9,7 @@ class StatusSection(QMLWidgetBackend):
     SOURCE = "qrc:/qml/application/qml/Status.qml"
 
     connection_state = NotifiedProperty(int)
-    byte_rate_s = NotifiedProperty(float)
+    receive_size = NotifiedProperty(int)
     calibration_state = NotifiedProperty(int)
     control_switch_state = NotifiedProperty(bool)
     control_cycle_time_ms = NotifiedProperty(float)
@@ -19,6 +19,7 @@ class StatusSection(QMLWidgetBackend):
     def __init__(self, widget_frame: QFrame, connection_state: Literal[0, 1, 2], calibration_state: Literal[0, 1, 2], control_switch_state: bool, loaded_param_state: Literal[0, 1]):
         super().__init__(widget_frame, self.SOURCE)
         self.connection_state = connection_state
+        self.receive_size = 0
         self.calibration_state = calibration_state
         self.control_switch_state = control_switch_state
         self.control_cycle_time_ms = 0.0
@@ -27,23 +28,23 @@ class StatusSection(QMLWidgetBackend):
 
         self._control_cycle_time_us = ScheduledValue(CurveLibrary.definitions("CONTROL/CYCLE_US").get_value, 500)
         self._control_cycle_time_us.updated.connect(self.set_control_cycle_time)
-        self._byte_rate = ScheduledValue(CurveLibrary.definitions("BYTES_RECEIVED").get_value, 500)
-        self._byte_rate.updated.connect(self.set_byte_rate)
+        self._bytes_received = ScheduledValue(CurveLibrary.definitions("BYTES_RECEIVED").get_value, 500)
+        self._bytes_received.updated.connect(self.set_receive_size)
 
     def set_control_cycle_time(self, value: float):
         self.control_cycle_time_ms = value * 1e-3
 
-    def set_byte_rate(self, value: float):
-        self.byte_rate_s = value * 1e3 / self._byte_rate.interval_ms
+    def set_receive_size(self, value: float):
+        self.receive_size = round(value)
 
     def on_receive_start(self):
         self._control_cycle_time_us.start()
-        self._byte_rate.start()
+        self._bytes_received.start()
 
     def on_receive_stop(self):
         self._control_cycle_time_us.stop()
-        self._byte_rate.stop()
-        self.byte_rate_s = 0.0
+        self._bytes_received.stop()
+        self.receive_size = 0.0
         self.control_cycle_time_ms = 0.0
 
 
