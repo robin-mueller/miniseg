@@ -9,6 +9,7 @@ class StatusSection(QMLWidgetBackend):
     SOURCE = "qrc:/qml/application/qml/Status.qml"
 
     connection_state = NotifiedProperty(int)
+    byte_rate_s = NotifiedProperty(float)
     calibration_state = NotifiedProperty(int)
     control_switch_state = NotifiedProperty(bool)
     control_cycle_time = NotifiedProperty(float)
@@ -24,11 +25,24 @@ class StatusSection(QMLWidgetBackend):
         self.loaded_param_state = loaded_param_state
         self.param_file_name = "Nothing Loaded"
 
-        self.scheduled_control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value * 1e-3, 1000)
-        self.scheduled_control_cycle_time.updated.connect(self.set_control_cycle_time)
+        self._control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value * 1e-3, 1000)
+        self._control_cycle_time.updated.connect(self.set_control_cycle_time)
+        self._byte_rate = ScheduledValue(lambda: CurveLibrary.definitions("BYTES_RECEIVED").get_data().value, 500)
+        self._byte_rate.updated.connect(self.set_byte_rate)
 
     def set_control_cycle_time(self, value: float):
         self.control_cycle_time = value
+
+    def set_byte_rate(self, value: float):
+        self.byte_rate_s = value * 1e3 / self._byte_rate.interval_ms
+
+    def on_receive_start(self):
+        self._control_cycle_time.start()
+        self._byte_rate.start()
+
+    def on_receive_stop(self):
+        self._control_cycle_time.stop()
+        self._byte_rate.stop()
 
 
 class ParameterSection(QObject, metaclass=NotifiedPropertyMeta):

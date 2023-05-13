@@ -9,19 +9,25 @@ from dataclasses import dataclass
 from collections import UserDict
 from PySide6.QtCore import QTimer, Signal, QObject, SignalInstance
 from PySide6.QtGui import QFont
+from .helper import program_uptime
 from .communication.interface import StampedData, DataInterface, DataInterfaceDefinition
 
 
 @dataclass(frozen=True, eq=True)
 class CurveDefinition:
-    """
-    Class for creating monitoring curve definitions.
-
-    - label: Name of the curve.
-    - get_func: Getter function of the respective value.
-    """
     label: str
     get_data: Callable[[], StampedData]  # Has to return a tuple of value and timestamp in this order
+
+    def __init__(self, label: str, getter: Callable[[], any], stamper: Callable[[], float] = program_uptime):
+        """
+        Class for creating monitoring curve definitions.
+
+        :param label: Name of the curve.
+        :param getter: Callable that returns the desired value.
+        :param stamper: Callable that returns the timestamp associated with each value.
+        """
+        object.__setattr__(self, "label", label)
+        object.__setattr__(self, "get_data", lambda: StampedData(getter(), stamper()))
 
 
 @dataclass
@@ -104,6 +110,10 @@ class ScheduledValue(QObject):
         self._publish_value_timer = QTimer()
         self._publish_value_timer.timeout.connect(lambda: self.updated.emit(self._request()))
         self._publish_value_timer.setInterval(interval_ms)
+
+    @property
+    def interval_ms(self):
+        return self._publish_value_timer.interval()
 
     def start(self):
         self._register_timer.start()

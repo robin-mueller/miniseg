@@ -14,12 +14,17 @@ GridLayout {
     readonly property int leftWidth: 140
     readonly property int titleSize: 14
     readonly property int textSize: 12
+    readonly property int headerBorderDistance: columnSpacing
+    readonly property int headerBorderWidth: 2
+    readonly property int headerBorderHeightMargin: 0
+    readonly property int headerSpacerHeight: 10
 
     property alias control_state: controller_switch.checked
 
     Item {
         Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
+        Layout.rowSpan: 2
 
         Text {
             text: "Bluetooth"
@@ -28,6 +33,17 @@ GridLayout {
             color: Theme.foreground
             anchors {
                 right: parent.right
+                rightMargin: root.headerBorderDistance
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: root.headerBorderWidth
+            height: parent.height - 2 * root.headerBorderHeightMargin
+            color: Theme.foreground
+            anchors {
+                horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
             }
         }
@@ -55,6 +71,47 @@ GridLayout {
     }
 
     Item {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+
+        Text {
+            id: byte_rate_header
+
+            text: "Receive:"
+            color: Theme.foreground
+            font {
+                pixelSize: root.textSize
+                bold: true
+            }
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Text {
+            id: byte_rate
+
+            text: Number(backend.byte_rate_s).toLocaleString(Qt.locale("en_US"), "f", 0) + " bytes/s"
+            color: Theme.foreground
+            font {
+                pixelSize: root.textSize
+                family: Theme.number_font_family
+            }
+            anchors {
+                left: byte_rate_header.right
+                leftMargin: root.columnSpacing
+                verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    Item {
+        height: root.headerSpacerHeight
+        Layout.columnSpan: 2
+    }
+
+    Item {
         Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
 
@@ -65,6 +122,17 @@ GridLayout {
             color: Theme.foreground
             anchors {
                 right: parent.right
+                rightMargin: root.headerBorderDistance
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: root.headerBorderWidth
+            height: parent.height - 2 * root.headerBorderHeightMargin
+            color: Theme.foreground
+            anchors {
+                horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
             }
         }
@@ -92,6 +160,11 @@ GridLayout {
     }
 
     Item {
+        height: root.headerSpacerHeight
+        Layout.columnSpan: 2
+    }
+
+    Item {
         Layout.preferredWidth: root.leftWidth
         Layout.fillHeight: true
         Layout.rowSpan: 2
@@ -103,6 +176,17 @@ GridLayout {
             color: Theme.foreground
             anchors {
                 right: parent.right
+                rightMargin: root.headerBorderDistance
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: root.headerBorderWidth
+            height: parent.height - 2 * root.headerBorderHeightMargin
+            color: Theme.foreground
+            anchors {
+                horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
             }
         }
@@ -112,21 +196,6 @@ GridLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
 
-        Text {
-            id: header1
-
-            text: "State:"
-            color: Theme.foreground
-            font {
-                pixelSize: root.textSize
-                bold: true
-            }
-            anchors {
-                left: parent.left
-                verticalCenter: parent.verticalCenter
-            }
-        }
-
         Switch {
             id: controller_switch
 
@@ -134,16 +203,15 @@ GridLayout {
             onToggled: backend.control_switch_state = checked
 
             anchors {
-                left: header1.right
-                leftMargin: root.columnSpacing
+                left: parent.left
                 verticalCenter: parent.verticalCenter
             }
             height: indicator.height
             width: indicator.width
 
             indicator: Rectangle {
-                implicitWidth: 60
-                implicitHeight: 25
+                implicitWidth: 55
+                implicitHeight: 22
                 radius: implicitHeight / 2
                 color: controller_switch.checked ? Theme.primary : Theme.foreground
                 border.color: Theme.border
@@ -180,7 +248,7 @@ GridLayout {
         Layout.fillHeight: true
 
         Text {
-            id: header2
+            id: control_cycle_header
 
             text: "Cycle:"
             color: Theme.foreground
@@ -195,8 +263,6 @@ GridLayout {
         }
 
         Text {
-            id: cycleNum
-
             text: Number(backend.control_cycle_time).toLocaleString(Qt.locale("en_US"), "f", 3) + " ms"
             color: Theme.foreground
             font {
@@ -204,11 +270,16 @@ GridLayout {
                 family: Theme.number_font_family
             }
             anchors {
-                left: header2.right
+                left: control_cycle_header.right
                 leftMargin: root.columnSpacing
                 verticalCenter: parent.verticalCenter
             }
         }
+    }
+
+    Item {
+        height: root.headerSpacerHeight
+        Layout.columnSpan: 2
     }
 
     Item {
@@ -222,6 +293,17 @@ GridLayout {
             color: Theme.foreground
             anchors {
                 right: parent.right
+                rightMargin: root.headerBorderDistance
+                verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: root.headerBorderWidth
+            height: parent.height - 2 * root.headerBorderHeightMargin
+            color: Theme.foreground
+            anchors {
+                horizontalCenter: parent.right
                 verticalCenter: parent.verticalCenter
             }
         }
@@ -232,8 +314,8 @@ GridLayout {
         Layout.fillHeight: true
 
         readonly property var messages: {
-            "0": " | Not sent yet",
-            "1": " | Sent"
+            "0": " - Not sent yet",
+            "1": " - Sent"
         }
 
         Text {

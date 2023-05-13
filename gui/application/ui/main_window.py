@@ -5,7 +5,6 @@ from typing import Literal, Callable
 from pathlib import Path
 from application.communication.device import BluetoothDevice
 from application.communication.interface import StampedData, DataInterface
-from application.helper import program_uptime
 from application.plotting import MonitoringGraph, GraphDict, CurveDefinition, CurveLibrary, UserDict
 from application.concurrent import ConcurrentTask
 from application.ui.monitoring_window import MonitoringWindow
@@ -20,7 +19,6 @@ from PySide6.QtWidgets import QMainWindow, QProgressBar, QLabel, QFileDialog
 class MinSegGUI(QMainWindow):
     def __init__(self):
         super().__init__(None)
-        self.start_time: QTime = QTime.currentTime()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.plot_overview.setBackground(None)
@@ -44,6 +42,7 @@ class MinSegGUI(QMainWindow):
             on_failed=self.ui.actionDisconnect.trigger,
             repeat_ms=0
         )
+        self.bt_bytes_received = 0
         self.bt_connect_progress_bar = QProgressBar()
         self.bt_connect_progress_bar.setMaximumSize(250, 15)
         self.bt_connect_progress_bar.setRange(0, 0)
@@ -63,15 +62,16 @@ class MinSegGUI(QMainWindow):
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
         # Curve definitions
-        CurveLibrary.add_definition("POS_SETPOINT_MM", CurveDefinition("pos_setpoint_mm", lambda: StampedData(self.bt_device.tx_data["pos_setpoint_mm"].value, program_uptime())))
+        CurveLibrary.add_definition("BYTES_RECEIVED", CurveDefinition("bytes_received", lambda: self.bt_bytes_received))
+        CurveLibrary.add_definition("POS_SETPOINT_MM", CurveDefinition("pos_setpoint_mm", lambda: self.bt_device.tx_data["pos_setpoint_mm"].value))
         CurveLibrary.parse_data_interface(self.bt_device.rx_data)
 
-        # Add qml sections
+        # Add QML sections
         self.status_section = StatusSection(self.ui.status_frame, 0, 0, False, 0)
+        self.bt_receive_task.started.connect(self.status_section.on_receive_start)
+        self.bt_receive_task.stopped.connect(self.status_section.on_receive_stop)
         self.parameter_section = ParameterSection(self.ui.parameter_frame, **{group: list(names.keys()) for group, names in self.bt_device.tx_data.definition["parameters", "variable"].items()})
         self.setpoint_slider = SetpointSlider(self.ui.setpoint_slider_frame, 0)
-        self.bt_receive_task.started.connect(self.status_section.scheduled_control_cycle_time.start)
-        self.bt_receive_task.stopped.connect(self.status_section.scheduled_control_cycle_time.stop)
 
         # TX interface connections
         self.setpoint_slider.value_changed.connect(
@@ -157,10 +157,11 @@ class MinSegGUI(QMainWindow):
         self.status_section.control_cycle_time = 0.0
 
     def on_bt_received(self, received: bytes):
+        self.bt_bytes_received = len(received)
         if not received:
             return
 
-        self.bt_device.rx_data.update_receive_time()  # Update receive time
+        self.bt_device.rx_data.update_receive_time()  # Update receive timestamp
         self.bt_device.deserialize(received)  # Update RX interface
 
     def on_start_calibration(self):

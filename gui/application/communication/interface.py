@@ -1,7 +1,7 @@
 import re
 import json
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
 from collections import UserDict
@@ -71,7 +71,7 @@ class DataInterfaceDefinition(UserDict):
     class MissingCorrespondingType(Exception):
         pass
 
-    def __init__(self, *members: tuple[str, type], **kw_members):
+    def __init__(self, *members: tuple[str, type], **kw_members: type):
         super().__init__({name: t for name, t in members}, **kw_members)
 
     def __getitem__(self: DataInterfaceDefinitionType, key: str | tuple) -> DataInterfaceDefinitionType:
@@ -116,7 +116,7 @@ class DataInterfaceDefinition(UserDict):
 @dataclass(frozen=True, eq=True)
 class StampedData:
     value: any
-    timestamp: float | None
+    timestamp: float | None = field(compare=False)
 
 
 DataInterfaceType = TypeVar('DataInterfaceType')
@@ -171,6 +171,12 @@ class DataInterface(UserDict):
         return self._interface_def
 
     def execute_when_set(self, key: str, callback: Callable[[StampedData], None]):
+        """
+        Adds a callback that is executed when the value specified by key is set.
+
+        :param key: The key of a member of this DataInterface instance.
+        :param callback: The callback to be executed on setting the value associated with key. The callback receives the set value as an argument and should return nothing.
+        """
         if key in self.keys():
             self._setitem_callbacks[key] = callback
         else:
