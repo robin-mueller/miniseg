@@ -92,7 +92,7 @@ GridLayout {
         Text {
             id: byte_rate
 
-            text: Number(backend.byte_rate_s).toLocaleString(Qt.locale("en_US"), "f", 0) + " bytes/s"
+            text: Number(backend.byte_rate_s).toLocaleString(Qt.locale("en_US"), "f", 0) + " B/s"
             color: Theme.foreground
             font {
                 pixelSize: root.textSize
@@ -263,7 +263,7 @@ GridLayout {
         }
 
         Text {
-            text: Number(backend.control_cycle_time).toLocaleString(Qt.locale("en_US"), "f", 3) + " ms"
+            text: Number(backend.control_cycle_time_ms).toLocaleString(Qt.locale("en_US"), "f", 3) + " ms"
             color: Theme.foreground
             font {
                 pixelSize: root.textSize

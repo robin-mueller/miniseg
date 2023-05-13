@@ -62,8 +62,8 @@ class MinSegGUI(QMainWindow):
         self.bt_device.rx_data.execute_when_set("msg", lambda msg: self.ui.console.append(f"{QTime.currentTime().toString()} -> {msg.value}"))
 
         # Curve definitions
-        CurveLibrary.add_definition("BYTES_RECEIVED", CurveDefinition("bytes_received", lambda: self.bt_bytes_received))
-        CurveLibrary.add_definition("POS_SETPOINT_MM", CurveDefinition("pos_setpoint_mm", lambda: self.bt_device.tx_data["pos_setpoint_mm"].value))
+        CurveLibrary.add_definition("BYTES_RECEIVED", CurveDefinition.make("bytes_received", lambda: self.bt_bytes_received))
+        CurveLibrary.add_definition("POS_SETPOINT_MM", CurveDefinition.make("pos_setpoint_mm", lambda: self.bt_device.tx_data["pos_setpoint_mm"].value))
         CurveLibrary.parse_data_interface(self.bt_device.rx_data)
 
         # Add QML sections
@@ -154,13 +154,12 @@ class MinSegGUI(QMainWindow):
         self.status_section.connection_state = 0
         self.status_section.calibration_state = 0
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
-        self.status_section.control_cycle_time = 0.0
 
     def on_bt_received(self, received: bytes):
-        self.bt_bytes_received = len(received)
         if not received:
             return
 
+        self.bt_bytes_received = len(received)
         self.bt_device.rx_data.update_receive_time()  # Update receive timestamp
         self.bt_device.deserialize(received)  # Update RX interface
 
@@ -170,6 +169,8 @@ class MinSegGUI(QMainWindow):
         self.ui.actionStartCalibration.setEnabled(False)
 
     def on_calibrated(self, calibrated: StampedData):
+        print(self.bt_device.tx_data["calibration"].value is True)
+        print(self.bt_device.tx_data["calibration"] is True)
         if self.status_section.calibration_state == 0 and self.bt_device.tx_data["calibration"].value is True and calibrated.value is False:
             self.status_section.calibration_state = 1
             return

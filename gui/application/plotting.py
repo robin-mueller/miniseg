@@ -15,19 +15,33 @@ from .communication.interface import StampedData, DataInterface, DataInterfaceDe
 
 @dataclass(frozen=True, eq=True)
 class CurveDefinition:
-    label: str
-    get_data: Callable[[], StampedData]  # Has to return a tuple of value and timestamp in this order
+    """
+    This class defines a curve by a label and a getter function.
 
-    def __init__(self, label: str, getter: Callable[[], any], stamper: Callable[[], float] = program_uptime):
+    - label: Name of the curve.
+    - _get_data: Getter for stamped data.
+
+    If there is no getter for stamped data available, one can use the classmethod make to define it inline.
+    """
+    label: str
+    _get_data: Callable[[], StampedData]
+
+    @classmethod
+    def make(cls, label: str, getter: Callable[[], any], stamper: Callable[[], float] = program_uptime):
         """
-        Class for creating monitoring curve definitions.
+        Creates a curve definition based on a label as well as getter and a stamper function.
 
         :param label: Name of the curve.
         :param getter: Callable that returns the desired value.
         :param stamper: Callable that returns the timestamp associated with each value.
         """
-        object.__setattr__(self, "label", label)
-        object.__setattr__(self, "get_data", lambda: StampedData(getter(), stamper()))
+        return cls(label, lambda: StampedData(getter(), stamper()))
+
+    def get_value(self):
+        return self._get_data().value
+
+    def get_timestamp(self):
+        return self._get_data().timestamp
 
 
 @dataclass
@@ -103,7 +117,7 @@ class ScheduledValue(QObject):
         :param interval_ms: Rate to update the value in milliseconds. The updated signal will be emitted at that rate.
         """
         super().__init__()
-        self._register_arr = np.array([])
+        self._register_arr = np.array([0])
         self._register_timer = QTimer()
         self._register_timer.timeout.connect(lambda: self._register(getter()))
         self._register_timer.setInterval(round(1000 / config.PARAMETERS.plot_update_rate_ms))
@@ -266,8 +280,7 @@ class MonitoringGraph(pg.PlotItem):
 
     def _update(self):
         for curve_def, time_curve in self._curves_dict.items():
-            data = curve_def.get_data()
-            time_curve.append_data(data.value, data.timestamp)
+            time_curve.append_data(curve_def.get_value(), curve_def.get_timestamp())
 
 
 class GraphDict(UserDict):

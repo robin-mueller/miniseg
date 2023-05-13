@@ -12,7 +12,7 @@ class StatusSection(QMLWidgetBackend):
     byte_rate_s = NotifiedProperty(float)
     calibration_state = NotifiedProperty(int)
     control_switch_state = NotifiedProperty(bool)
-    control_cycle_time = NotifiedProperty(float)
+    control_cycle_time_ms = NotifiedProperty(float)
     loaded_param_state = NotifiedProperty(int)
     param_file_name = NotifiedProperty(str)
     
@@ -21,28 +21,30 @@ class StatusSection(QMLWidgetBackend):
         self.connection_state = connection_state
         self.calibration_state = calibration_state
         self.control_switch_state = control_switch_state
-        self.control_cycle_time = 0.0
+        self.control_cycle_time_ms = 0.0
         self.loaded_param_state = loaded_param_state
         self.param_file_name = "Nothing Loaded"
 
-        self._control_cycle_time = ScheduledValue(lambda: CurveLibrary.definitions("CONTROL/CYCLE_US").get_data().value * 1e-3, 1000)
-        self._control_cycle_time.updated.connect(self.set_control_cycle_time)
-        self._byte_rate = ScheduledValue(lambda: CurveLibrary.definitions("BYTES_RECEIVED").get_data().value, 500)
+        self._control_cycle_time_us = ScheduledValue(CurveLibrary.definitions("CONTROL/CYCLE_US").get_value, 500)
+        self._control_cycle_time_us.updated.connect(self.set_control_cycle_time)
+        self._byte_rate = ScheduledValue(CurveLibrary.definitions("BYTES_RECEIVED").get_value, 500)
         self._byte_rate.updated.connect(self.set_byte_rate)
 
     def set_control_cycle_time(self, value: float):
-        self.control_cycle_time = value
+        self.control_cycle_time_ms = value * 1e-3
 
     def set_byte_rate(self, value: float):
         self.byte_rate_s = value * 1e3 / self._byte_rate.interval_ms
 
     def on_receive_start(self):
-        self._control_cycle_time.start()
+        self._control_cycle_time_us.start()
         self._byte_rate.start()
 
     def on_receive_stop(self):
-        self._control_cycle_time.stop()
+        self._control_cycle_time_us.stop()
         self._byte_rate.stop()
+        self.byte_rate_s = 0.0
+        self.control_cycle_time_ms = 0.0
 
 
 class ParameterSection(QObject, metaclass=NotifiedPropertyMeta):

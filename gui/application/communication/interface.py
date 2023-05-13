@@ -1,7 +1,7 @@
 import re
 import json
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
 from collections import UserDict
@@ -116,7 +116,7 @@ class DataInterfaceDefinition(UserDict):
 @dataclass(frozen=True, eq=True)
 class StampedData:
     value: any
-    timestamp: float | None = field(compare=False)
+    timestamp: float | None
 
 
 DataInterfaceType = TypeVar('DataInterfaceType')
