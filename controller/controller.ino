@@ -34,7 +34,7 @@ void setup() {
 
 void loop() {
   bool prev_control_state = comm.rx_data.control_state;
-  static bool reset_to_initial_position = true;
+  static bool reset_control = true;
 
   // Receive available data
   switch (comm.async_receive()) {
@@ -68,7 +68,7 @@ void loop() {
 
   // Reset positional variables when control state is set to true to be able to restart the control from the inital position
   if (prev_control_state == false && comm.rx_data.control_state == true) {
-    reset_to_initial_position = true;  // This flag will be reset once the asynchronous control cycle became aware of the state change
+    reset_control = true;  // This flag will be reset once the asynchronous control cycle became aware of the state change
   }
 
   if (comm.rx_data.calibration) calibrate_mpu();
@@ -86,10 +86,15 @@ void loop() {
     static double xi = 0;                                  // Persistent integral action state for position control
     double x1_corr, x2_corr, x3_corr, x4_corr;             // State values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
-    if (reset_to_initial_position) {
+    if (reset_control) {
       wheel_angle_rad.reset();
       xi = 0;
-      reset_to_initial_position = false;
+      x_m1 = 0;
+      x_m2 = 0;
+      x_m3 = 0;
+      x_m4 = 0;
+
+      reset_control = false;
     }
 
     // Sensor readings
