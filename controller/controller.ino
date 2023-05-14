@@ -128,7 +128,7 @@ void loop() {
     comm.tx_data.control.signal.u = u;
     comm.tx_data.control.signal.u_bal = u_bal;
     comm.tx_data.control.signal.u_pos = u_pos;
-    comm.tx_data.control.signal.u_pos = u_ff;
+    comm.tx_data.control.signal.u_ff = u_ff;
     comm.tx_data.control.motor = motor_val;
 
     // Calculate (predict) next cycle values (k+1)
