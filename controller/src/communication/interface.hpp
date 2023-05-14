@@ -5,8 +5,8 @@
 
 #include <ArduinoJson.h>
 
-#define JSON_DOC_SIZE_RX 882
-#define JSON_DOC_SIZE_TX 184
+#define JSON_DOC_SIZE_RX 1261
+#define JSON_DOC_SIZE_TX 200
 
 struct ReceiveInterface {
 bool calibration;
@@ -79,6 +79,39 @@ double mx42;
 double mx43;
 } innoGain;
 } observer;
+struct {
+struct {
+double phi11;
+double phi12;
+double phi13;
+double phi14;
+double phi21;
+double phi22;
+double phi23;
+double phi24;
+double phi31;
+double phi32;
+double phi33;
+double phi34;
+double phi41;
+double phi42;
+double phi43;
+double phi44;
+} phi;
+struct {
+double gam1;
+double gam2;
+double gam3;
+double gam4;
+} gamma;
+struct {
+double k1;
+double k2;
+double k3;
+double k4;
+} Km;
+double Kc;
+} ff;
 } inferred;
 } parameters;
 
@@ -111,9 +144,12 @@ double z_mm;
 } observer;
 struct {
 uint32_t cycle_us;
+struct {
 double u;
 double u_bal;
 double u_pos;
+double u_ff;
+} signal;
 int16_t motor;
 } control;
 bool calibrated;
