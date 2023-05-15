@@ -119,21 +119,20 @@ void loop() {
     comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
     // Feed Forward Model states
-    comm.tx_data.ff_model.tilt.angle_rad = x_m1;
-    comm.tx_data.ff_model.tilt.vel_rad_s = x_m2;
-    comm.tx_data.ff_model.wheel.angle_rad = x_m3;
-    comm.tx_data.ff_model.wheel.vel_rad_s = x_m4;
+    comm.tx_data.ff_model.tilt.vel_rad_s = x_m1;
+    comm.tx_data.ff_model.tilt.angle_rad = x_m2;
+    comm.tx_data.ff_model.wheel.vel_rad_s = x_m3;
+    comm.tx_data.ff_model.wheel.angle_rad = x_m4;
     comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
 
     double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint
 
-    double u_bal = 0, u_pos = 0, u_ff = 0;
+    double u = 0, u_bal, u_pos, u_ff;
+    calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r_rad);
+    calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
     if (comm.rx_data.control_state) {
-      calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r_rad);
-      calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
+      u = u_bal + u_pos + u_ff;
     }
-
-    double u = u_bal + u_pos + u_ff;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
 
     comm.tx_data.control.signal.u = u;
