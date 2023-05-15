@@ -49,7 +49,7 @@ void loop() {
       break;
     case Communication::ReceiveCode::RX_IN_PROGRESS:
       static uint32_t last_rx_timestamp_us = 0;
-      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {
+      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {  // Only send this message once per rx process
         comm.message_append(F("Receiving Packet ["));
         char msg_bytes_num[6];
         itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
@@ -176,7 +176,7 @@ void loop() {
 void calibrate_mpu() {
   comm.tx_data.calibrated = false;
   comm.enqueue_for_transmit(comm.tx_data.to_doc());
-  while (comm.async_transmit() > 0) {}
+  while (comm.async_transmit() > 0) {}  // Empty transmit buffer
 
   // Only acc gyro calibration necessary
   comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
