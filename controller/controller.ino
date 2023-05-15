@@ -49,7 +49,7 @@ void loop() {
       break;
     case Communication::ReceiveCode::RX_IN_PROGRESS:
       static uint32_t last_rx_timestamp_us = 0;
-      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {
+      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {  // Only send this message once per rx process
         comm.message_append(F("Receiving Packet ["));
         char msg_bytes_num[6];
         itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
@@ -119,21 +119,20 @@ void loop() {
     comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
     // Feed Forward Model states
-    comm.tx_data.ff_model.tilt.angle_rad = x_m1;
-    comm.tx_data.ff_model.tilt.vel_rad_s = x_m2;
-    comm.tx_data.ff_model.wheel.angle_rad = x_m3;
-    comm.tx_data.ff_model.wheel.vel_rad_s = x_m4;
+    comm.tx_data.ff_model.tilt.vel_rad_s = x_m1;
+    comm.tx_data.ff_model.tilt.angle_rad = x_m2;
+    comm.tx_data.ff_model.wheel.vel_rad_s = x_m3;
+    comm.tx_data.ff_model.wheel.angle_rad = x_m4;
     comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
 
     double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint
 
-    double u_bal = 0, u_pos = 0, u_ff = 0;
+    double u = 0, u_bal, u_pos, u_ff;
+    calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r_rad);
+    calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
     if (comm.rx_data.control_state) {
-      calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r_rad);
-      calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
+      u = u_bal + u_pos + u_ff;
     }
-
-    double u = u_bal + u_pos + u_ff;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
 
     comm.tx_data.control.signal.u = u;
@@ -177,7 +176,7 @@ void loop() {
 void calibrate_mpu() {
   comm.tx_data.calibrated = false;
   comm.enqueue_for_transmit(comm.tx_data.to_doc());
-  while (comm.async_transmit() > 0) {}
+  while (comm.async_transmit() > 0) {}  // Empty transmit buffer
 
   // Only acc gyro calibration necessary
   comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
