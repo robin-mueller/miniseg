@@ -118,8 +118,14 @@ void loop() {
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
     comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
-    // Wheel angle setpoint
-    double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
+    // Feed Forward Model states
+    comm.tx_data.ff_model.tilt.angle_rad = x_m1;
+    comm.tx_data.ff_model.tilt.vel_rad_s = x_m2;
+    comm.tx_data.ff_model.wheel.angle_rad = x_m3;
+    comm.tx_data.ff_model.wheel.vel_rad_s = x_m4;
+    comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
+
+    double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint
 
     double u_bal = 0, u_pos = 0, u_ff = 0;
     if (comm.rx_data.control_state) {

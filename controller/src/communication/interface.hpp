@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 #define JSON_DOC_SIZE_RX 1261
-#define JSON_DOC_SIZE_TX 200
+#define JSON_DOC_SIZE_TX 272
 
 struct ReceiveInterface {
 bool calibration;
@@ -142,6 +142,19 @@ struct {
 double z_mm;
 } position;
 } observer;
+struct {
+struct {
+double angle_rad;
+double vel_rad_s;
+} wheel;
+struct {
+double angle_rad;
+double vel_rad_s;
+} tilt;
+struct {
+double z_mm;
+} position;
+} ff_model;
 struct {
 uint32_t cycle_us;
 struct {

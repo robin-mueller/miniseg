@@ -23,6 +23,19 @@
         "z_mm": "double"
       }
     },
+    "ff_model": {
+      "wheel": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      },
+      "tilt": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      },
+      "position": {
+        "z_mm": "double"
+      }
+    },
     "control": {
       "cycle_us": "uint32_t",
       "signal": {
