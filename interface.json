@@ -23,11 +23,27 @@
         "z_mm": "double"
       }
     },
+    "ff_model": {
+      "wheel": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      },
+      "tilt": {
+        "angle_rad": "double",
+        "vel_rad_s": "double"
+      },
+      "position": {
+        "z_mm": "double"
+      }
+    },
     "control": {
       "cycle_us": "uint32_t",
-      "u": "double",
-      "u_bal": "double",
-      "u_pos": "double",
+      "signal": {
+        "u": "double",
+        "u_bal": "double",
+        "u_pos": "double",
+        "u_ff": "double"
+      },
       "motor": "int16_t"
     },
     "calibrated": "bool"
@@ -102,6 +118,39 @@
             "mx42": "double",
             "mx43": "double"
           }
+        },
+        "ff": {
+          "phi": {
+            "phi11": "double",
+            "phi12": "double",
+            "phi13": "double",
+            "phi14": "double",
+            "phi21": "double",
+            "phi22": "double",
+            "phi23": "double",
+            "phi24": "double",
+            "phi31": "double",
+            "phi32": "double",
+            "phi33": "double",
+            "phi34": "double",
+            "phi41": "double",
+            "phi42": "double",
+            "phi43": "double",
+            "phi44": "double"
+          },
+          "gamma": {
+            "gam1": "double",
+            "gam2": "double",
+            "gam3": "double",
+            "gam4": "double"
+          },
+          "Km": {
+            "k1": "double",
+            "k2": "double",
+            "k3": "double",
+            "k4": "double"
+          },
+          "Kc": "double"
         }
       }
     }

@@ -34,7 +34,7 @@ void setup() {
 
 void loop() {
   bool prev_control_state = comm.rx_data.control_state;
-  static bool reset_to_initial_position = true;
+  static bool reset_control = true;
 
   // Receive available data
   switch (comm.async_receive()) {
@@ -49,7 +49,7 @@ void loop() {
       break;
     case Communication::ReceiveCode::RX_IN_PROGRESS:
       static uint32_t last_rx_timestamp_us = 0;
-      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {
+      if (comm.rx_packet_info.timestamp_us > last_rx_timestamp_us) {  // Only send this message once per rx process
         comm.message_append(F("Receiving Packet ["));
         char msg_bytes_num[6];
         itoa(comm.rx_packet_info.message_length, msg_bytes_num, 10);
@@ -68,7 +68,7 @@ void loop() {
 
   // Reset positional variables when control state is set to true to be able to restart the control from the inital position
   if (prev_control_state == false && comm.rx_data.control_state == true) {
-    reset_to_initial_position = true;  // This flag will be reset once the asynchronous control cycle became aware of the state change
+    reset_control = true;  // This flag will be reset once the asynchronous control cycle became aware of the state change
   }
 
   if (comm.rx_data.calibration) calibrate_mpu();
@@ -81,14 +81,20 @@ void loop() {
     control_cycle_start_us = micros();
 
     // System states
-    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;  // persistent state values that are calculated recursively by the observer's state equation
-    static double xi = 0;                          // Integral action state for position control
-    double x1_corr, x2_corr, x3_corr, x4_corr;     // state values that are corrected to contain the observer's direct term (using the most recent measurement y)
+    static double x1 = 0, x2 = 0, x3 = 0, x4 = 0;          // Persistent state values that are calculated recursively by the observer's state equation
+    static double x_m1 = 0, x_m2 = 0, x_m3 = 0, x_m4 = 0;  // Persistent state values that are calculated recursively by the feedforward model's state equation
+    static double xi = 0;                                  // Persistent integral action state for position control
+    double x1_corr, x2_corr, x3_corr, x4_corr;             // State values that are corrected to contain the observer's direct term (using the most recent measurement y)
 
-    if (reset_to_initial_position) {
+    if (reset_control) {
       wheel_angle_rad.reset();
       xi = 0;
-      reset_to_initial_position = false;
+      x_m1 = 0;
+      x_m2 = 0;
+      x_m3 = 0;
+      x_m4 = 0;
+
+      reset_control = false;
     }
 
     // Sensor readings
@@ -112,25 +118,31 @@ void loop() {
     comm.tx_data.observer.wheel.angle_rad = x4_corr;
     comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
-    // Wheel angle setpoint
-    double r_rad = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;
+    // Feed Forward Model states
+    comm.tx_data.ff_model.tilt.vel_rad_s = x_m1;
+    comm.tx_data.ff_model.tilt.angle_rad = x_m2;
+    comm.tx_data.ff_model.wheel.vel_rad_s = x_m3;
+    comm.tx_data.ff_model.wheel.angle_rad = x_m4;
+    comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
 
-    double u_bal = 0, u_pos = 0;
+    double u = 0, u_bal, u_pos, u_ff;
+    calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4);
+    calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
     if (comm.rx_data.control_state) {
-      calculate_control_signals(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, r_rad);
+      u = u_bal + u_pos + u_ff;
     }
-
-    double u = u_bal + u_pos;
     int16_t motor_val = write_motor_voltage(u, 9, 2);
 
-    comm.tx_data.control.u = u;
-    comm.tx_data.control.u_bal = u_bal;
-    comm.tx_data.control.u_pos = u_pos;
+    comm.tx_data.control.signal.u = u;
+    comm.tx_data.control.signal.u_bal = u_bal;
+    comm.tx_data.control.signal.u_pos = u_pos;
+    comm.tx_data.control.signal.u_ff = u_ff;
     comm.tx_data.control.motor = motor_val;
 
-    // Precalculate next cycle values
+    // Calculate (predict) next cycle values (k+1)
     predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
-    if (comm.rx_data.control_state) update_position_state(xi, x4_corr, r_rad);  // Prevent integration of wheel position error when wheels will not move. That also avoids integral windup.
+    predict_feedforward_model_state(x_m1, x_m2, x_m3, x_m4, u_ff);
+    predict_integral_action_state(xi, x4_corr, x_m4);
 
     // Finish loop
     Sensor::cycle_num++;
@@ -162,7 +174,7 @@ void loop() {
 void calibrate_mpu() {
   comm.tx_data.calibrated = false;
   comm.enqueue_for_transmit(comm.tx_data.to_doc());
-  while (comm.async_transmit() > 0) {}
+  while (comm.async_transmit() > 0) {}  // Empty transmit buffer
 
   // Only acc gyro calibration necessary
   comm.message_transmit_now(F("Accel Gyro calibration will start in 3sec."));
@@ -248,22 +260,67 @@ void correct_state_estimation(double &x1, double &x2, double &x3, double &x4, do
   x4 = x4_prev + mx41 * y1_err + mx42 * y2_err + mx43 * y3_err;
 }
 
-void update_position_state(double &xi, double &x4, double &r_rad) {
-  double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
+void predict_feedforward_model_state(double &x1, double &x2, double &x3, double &x4, double &u_ff) {
+  double &phi11 = comm.rx_data.parameters.inferred.ff.phi.phi11;
+  double &phi12 = comm.rx_data.parameters.inferred.ff.phi.phi12;
+  double &phi13 = comm.rx_data.parameters.inferred.ff.phi.phi13;
+  double &phi14 = comm.rx_data.parameters.inferred.ff.phi.phi14;
+  double &phi21 = comm.rx_data.parameters.inferred.ff.phi.phi21;
+  double &phi22 = comm.rx_data.parameters.inferred.ff.phi.phi22;
+  double &phi23 = comm.rx_data.parameters.inferred.ff.phi.phi23;
+  double &phi24 = comm.rx_data.parameters.inferred.ff.phi.phi24;
+  double &phi31 = comm.rx_data.parameters.inferred.ff.phi.phi31;
+  double &phi32 = comm.rx_data.parameters.inferred.ff.phi.phi32;
+  double &phi33 = comm.rx_data.parameters.inferred.ff.phi.phi33;
+  double &phi34 = comm.rx_data.parameters.inferred.ff.phi.phi34;
+  double &phi41 = comm.rx_data.parameters.inferred.ff.phi.phi41;
+  double &phi42 = comm.rx_data.parameters.inferred.ff.phi.phi42;
+  double &phi43 = comm.rx_data.parameters.inferred.ff.phi.phi43;
+  double &phi44 = comm.rx_data.parameters.inferred.ff.phi.phi44;
 
-  xi += h * (r_rad - x4);
+  double &gam1 = comm.rx_data.parameters.inferred.ff.gamma.gam1;
+  double &gam2 = comm.rx_data.parameters.inferred.ff.gamma.gam2;
+  double &gam3 = comm.rx_data.parameters.inferred.ff.gamma.gam3;
+  double &gam4 = comm.rx_data.parameters.inferred.ff.gamma.gam4;
+
+  double x1_prev = x1;
+  double x2_prev = x2;
+  double x3_prev = x3;
+  double x4_prev = x4;
+
+  x1 = phi11 * x1_prev + phi12 * x2_prev + phi13 * x3_prev + phi14 * x4_prev + gam1 * u_ff;
+  x2 = phi21 * x1_prev + phi22 * x2_prev + phi23 * x3_prev + phi24 * x4_prev + gam2 * u_ff;
+  x3 = phi31 * x1_prev + phi32 * x2_prev + phi33 * x3_prev + phi34 * x4_prev + gam3 * u_ff;
+  x4 = phi41 * x1_prev + phi42 * x2_prev + phi43 * x3_prev + phi44 * x4_prev + gam4 * u_ff;
 }
 
-void calculate_control_signals(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi, double &r_rad) {
+void predict_integral_action_state(double &xi, double &x4, double &x4_set) {
+  double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
+
+  xi += h * (x4_set - x4);
+}
+
+void calculate_feedforward_control_signal(double &u_ff, double &x1, double &x2, double &x3, double &x4) {
+  double &k_m1 = comm.rx_data.parameters.inferred.ff.Km.k1;
+  double &k_m2 = comm.rx_data.parameters.inferred.ff.Km.k2;
+  double &k_m3 = comm.rx_data.parameters.inferred.ff.Km.k3;
+  double &k_m4 = comm.rx_data.parameters.inferred.ff.Km.k4;
+
+  double &k_c = comm.rx_data.parameters.inferred.ff.Kc;
+  double u_c = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint
+
+  u_ff = k_c * u_c - k_m1 * x1 - k_m2 * x2 - k_m3 * x3 - k_m4 * x4;
+}
+
+void calculate_feedback_control_signal(double &u_bal, double &u_pos, double &x1, double &x2, double &x3, double &x4, double &xi, double &x_m1, double &x_m2, double &x_m3, double &x_m4) {
   double &k1 = comm.rx_data.parameters.variable.BalanceControl.k1;
   double &k2 = comm.rx_data.parameters.variable.BalanceControl.k2;
   double &k3 = comm.rx_data.parameters.variable.BalanceControl.k3;
   double &k4 = comm.rx_data.parameters.variable.PositionControl.k4;
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
-  const double alpha_set = 0;  // Angle setpoint
-  u_bal = -k1 * x1 + k2 * (alpha_set + comm.rx_data.parameters.variable.General.alpha_off - x2) - k3 * x3;
-  u_pos = k4 * (r_rad - x4) - ki * xi;
+  u_bal = k1 * (x_m1 - x1) + k2 * (x_m2 + comm.rx_data.parameters.variable.General.alpha_off - x2) + k3 * (x_m3 - x3);
+  u_pos = k4 * (x_m4 - x4) - ki * xi;
 }
 
 int16_t write_motor_voltage(double volt, double saturation, uint8_t decimals) {
