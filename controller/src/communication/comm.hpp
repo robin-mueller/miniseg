@@ -34,8 +34,9 @@ public:
   };
 
 private:
+  // The buffer sizes take up almost half of the Arduino's memory! They cannot easily be extended further since communication needs also large amounts of dynamic memory (due to creation of JsonDocument instances).
   static const size_t TX_STATUS_MSG_BUFFER_SIZE = 128;
-  static const size_t TX_BUFFER_SIZE = 1500;
+  static const size_t TX_BUFFER_SIZE = 1500;  // Tx buffer should be bigger than the size of the outgoing messages to not fill up during a long delay caused by e.g. deserialization of an incoming message.
   static const size_t TX_STATUS_MSG_TRUNC_IND_SIZE = 5;
   static const size_t RX_BUFFER_SIZE = 1500;
 
