@@ -119,8 +119,9 @@ void loop() {
     comm.tx_data.observer.position.z_mm = -x4_corr * WHEEL_RAD_TO_MM;
 
     // Feed Forward Model states
+    double x_m2_with_offset = x_m2 + comm.rx_data.parameters.variable.General.alpha_off;  // Account for the configured tilt angle offset
     comm.tx_data.ff_model.tilt.vel_rad_s = x_m1;
-    comm.tx_data.ff_model.tilt.angle_rad = x_m2;
+    comm.tx_data.ff_model.tilt.angle_rad = x_m2_with_offset;
     comm.tx_data.ff_model.wheel.vel_rad_s = x_m3;
     comm.tx_data.ff_model.wheel.angle_rad = x_m4;
     comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
@@ -128,7 +129,7 @@ void loop() {
     double r = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint in rad
     double u = 0, u_bal, u_pos, u_ff;
     calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r);
-    calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
+    calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2_with_offset, x_m3, x_m4);
     if (comm.rx_data.control_state) {
       u = u_bal + u_pos + u_ff;
     }
@@ -319,7 +320,7 @@ void calculate_feedback_control_signal(double &u_bal, double &u_pos, double &x1,
   double &k4 = comm.rx_data.parameters.variable.PositionControl.k4;
   double &ki = comm.rx_data.parameters.variable.PositionControl.ki;
 
-  u_bal = k1 * (x_m1 - x1) + k2 * (x_m2 + comm.rx_data.parameters.variable.General.alpha_off - x2) + k3 * (x_m3 - x3);
+  u_bal = k1 * (x_m1 - x1) + k2 * (x_m2 - x2) + k3 * (x_m3 - x3);
   u_pos = k4 * (x_m4 - x4) - ki * xi;
 }
 
