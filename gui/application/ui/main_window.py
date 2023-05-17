@@ -75,7 +75,7 @@ class MinSegGUI(QMainWindow):
 
         # TX interface connections
         self.setpoint_slider.value_changed.connect(
-            lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), self.bt_device.NotConnectedError, "Failed to Send Setpoint")
+            lambda val: self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(pos_setpoint_mm=val * 10), [self.bt_device.NotConnectedError, ConnectionAbortedError], "Failed to Send Setpoint")
         )
         self.status_section.control_switch_state_changed.connect(self.on_control_state_change)
         self.parameter_section.last_change_changed.connect(lambda changed: self.update_parameters("variable", changed))
@@ -219,7 +219,7 @@ class MinSegGUI(QMainWindow):
 
     def send_parameters(self, subkey: Literal["variable", "inferred"] = None):
         do_send = partial(self.bt_device.send, key="parameters") if subkey is None else partial(self.bt_device.send, key=("parameters", subkey))
-        if self.do_catch_ex_in_statusbar(do_send, self.bt_device.NotConnectedError, "Failed to Send Parameters"):
+        if self.do_catch_ex_in_statusbar(do_send, [self.bt_device.NotConnectedError, ConnectionAbortedError], "Failed to Send Parameters"):
             self.status_section.loaded_param_state = 1
 
     def update_parameters(self, subkey: Literal["variable", "inferred"], changed: dict):
@@ -227,7 +227,7 @@ class MinSegGUI(QMainWindow):
         self.status_section.loaded_param_state = 0  # Change state to not yet sent
 
     def on_control_state_change(self, state: bool):
-        self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=state), self.bt_device.NotConnectedError, "Failed to Send Control State Change")
+        self.do_catch_ex_in_statusbar(lambda: self.bt_device.send(control_state=state), [self.bt_device.NotConnectedError, ConnectionAbortedError], "Failed to Send Control State Change")
         if not state:
             self.setpoint_slider.value = 0
 

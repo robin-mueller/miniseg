@@ -24,6 +24,7 @@ public:
   MinSegMPU();
 
   void setup();
+  bool update();
 };
 
 #endif

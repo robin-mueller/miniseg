@@ -125,8 +125,9 @@ void loop() {
     comm.tx_data.ff_model.wheel.angle_rad = x_m4;
     comm.tx_data.ff_model.position.z_mm = -x_m4 * WHEEL_RAD_TO_MM;
 
+    double r = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint in rad
     double u = 0, u_bal, u_pos, u_ff;
-    calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4);
+    calculate_feedforward_control_signal(u_ff, x_m1, x_m2, x_m3, x_m4, r);
     calculate_feedback_control_signal(u_bal, u_pos, x1_corr, x2_corr, x3_corr, x4_corr, xi, x_m1, x_m2, x_m3, x_m4);
     if (comm.rx_data.control_state) {
       u = u_bal + u_pos + u_ff;
@@ -142,7 +143,7 @@ void loop() {
     // Calculate (predict) next cycle values (k+1)
     predict_state_estimation(x1, x2, x3, x4, u, y1, y2, y3);
     predict_feedforward_model_state(x_m1, x_m2, x_m3, x_m4, u_ff);
-    predict_integral_action_state(xi, x4_corr, x_m4);
+    predict_integral_action_state(xi, x4_corr, comm.rx_data.parameters.inferred.ff.Kc == (double)0 ? r : x_m4);  // If feedforward is defined (Kc != 0) use x_m4 as the setpoint instead
 
     // Finish loop
     Sensor::cycle_num++;
@@ -294,20 +295,19 @@ void predict_feedforward_model_state(double &x1, double &x2, double &x3, double 
   x4 = phi41 * x1_prev + phi42 * x2_prev + phi43 * x3_prev + phi44 * x4_prev + gam4 * u_ff;
 }
 
-void predict_integral_action_state(double &xi, double &x4, double &x4_set) {
+void predict_integral_action_state(double &xi, double &x4, double x4_set) {
   double h = comm.rx_data.parameters.variable.General.h_ms * 1e-3;
 
   xi += h * (x4_set - x4);
 }
 
-void calculate_feedforward_control_signal(double &u_ff, double &x1, double &x2, double &x3, double &x4) {
+void calculate_feedforward_control_signal(double &u_ff, double &x1, double &x2, double &x3, double &x4, double &u_c) {
   double &k_m1 = comm.rx_data.parameters.inferred.ff.Km.k1;
   double &k_m2 = comm.rx_data.parameters.inferred.ff.Km.k2;
   double &k_m3 = comm.rx_data.parameters.inferred.ff.Km.k3;
   double &k_m4 = comm.rx_data.parameters.inferred.ff.Km.k4;
 
   double &k_c = comm.rx_data.parameters.inferred.ff.Kc;
-  double u_c = -comm.rx_data.pos_setpoint_mm * WHEEL_MM_TO_RAD;  // Wheel angle setpoint
 
   u_ff = k_c * u_c - k_m1 * x1 - k_m2 * x2 - k_m3 * x3 - k_m4 * x4;
 }
