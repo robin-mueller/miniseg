@@ -96,7 +96,7 @@ class MinSegGUI(QMainWindow):
             prepend = header + " - "
         try:
             do()
-        except catch as e:
+        except tuple(catch) as e:
             self.ui.statusbar.showMessage(prepend + f"{e.__class__.__name__}: {str(e)}", 3000)
             return False
         else:
