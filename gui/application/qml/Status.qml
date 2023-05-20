@@ -15,7 +15,7 @@ GridLayout {
     readonly property int titleSize: 14
     readonly property int textSize: 12
     readonly property int headerBorderDistance: columnSpacing
-    readonly property int headerBorderWidth: 2
+    readonly property int headerBorderWidth: 3
     readonly property int headerBorderHeightMargin: 0
     readonly property int headerSpacerHeight: 8
 

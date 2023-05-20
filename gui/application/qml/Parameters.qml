@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts 6.3
+import QtQuick.Shapes 1.5
 import Configuration
 //import "./dummy"
 
@@ -24,66 +25,33 @@ Item {
         }
     }
 
-    Rectangle {
+    Shape {
         id: bracket
 
-        color: Theme.background
-        border {
-            color: Theme.border
-            width: 2
-        }
+        layer.enabled: true
+        layer.samples: 4
 
-        radius: 18
+        readonly property int radius: 18
+        readonly property int borderWidth: 3
+
         anchors {
             top: header.bottom
             bottom: fields.bottom
-            bottomMargin: -fields.spacing
             left: root.left
             right: fields.right
-            rightMargin: -12
+            rightMargin: -fields.spacing
         }
 
-        Rectangle {
-            color: Theme.background
-            anchors {
-                top: parent.bottom
-                topMargin: -parent.radius
-                left: parent.horizontalCenter
-                right: parent.right
-                bottom: parent.bottom
-            }
-        }
+        ShapePath {
+            strokeColor: Theme.border
+            strokeWidth: bracket.borderWidth
+            joinStyle: ShapePath.RoundJoin
+            fillColor: Theme.background
 
-        Rectangle {
-            color: Theme.border
-            anchors {
-                top: parent.bottom
-                topMargin: -parent.radius
-                bottom: parent.bottom
-                right: parent.right
-                rightMargin: -parent.border.width
-            }
-        }
-
-        Rectangle {
-            color: Theme.background
-            anchors {
-                top: parent.top
-                left: parent.left
-                right: parent.horizontalCenter
-                bottom: parent.bottom
-            }
-        }
-
-        Rectangle {
-            color: Theme.border
-            anchors {
-                top: parent.top
-                bottom: parent.top
-                bottomMargin: -parent.border.width
-                left: parent.left
-                right: parent.horizontalCenter
-            }
+            startX: 0; startY: bracket.borderWidth / 2
+            PathLine { relativeX: bracket.width - bracket.radius - bracket.borderWidth / 2; relativeY: 0 }
+            PathArc { relativeX: bracket.radius; relativeY: bracket.radius; radiusX: bracket.radius; radiusY: bracket.radius}
+            PathLine { relativeX: 0; y: bracket.height }
         }
     }
 
