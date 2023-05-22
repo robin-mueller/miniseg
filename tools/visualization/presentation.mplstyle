@@ -1,0 +1,11 @@
+font.family: serif
+
+legend.fontsize: small
+
+axes.spines.left:   True
+axes.spines.bottom: True
+axes.spines.top:    False
+axes.spines.right:  False
+axes.labelsize: small
+
+lines.linewidth: 1
