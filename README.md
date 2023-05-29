@@ -29,7 +29,7 @@ built using Python 3.10 ([download](https://www.python.org/downloads/)) by
 typing:
 ```powershell
 cd gui  # Source directory should be miniseg/gui!
-<Python 3.10 install dir>\python.exe -m venv venv
+your\local\python\install\dir\python.exe -m venv venv
 venv\Scripts\pip.exe install -r requirements.txt
 cd ..
 ```
