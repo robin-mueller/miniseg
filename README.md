@@ -8,7 +8,7 @@ Have a look at the [wiki](https://github.com/robin-mueller/minseg/wiki) for a de
 ## To everyone working on this project
 This repository contains both the controller code and the graphical user interface. If you're an LTH student taking the FRTN01/FRTN60 project course or you're working on stabilizing the MinSeg for another reason, feel free to take the code presented here as a guide. It is worth mentioning that the controller was tested with an internal measurement unit called [MPU9250](https://invensense.tdk.com/products/motion-tracking/9-axis/mpu-9250/). So if your MinSeg comes for instance with a [MPU6050](https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6050/) you will have to use a different approach for reading the sensor values.
 
-The possibility to visualize real-time data and communicate with the Arduino is very useful reagrding the development process. If you've understood how to define a communication interface and how to use the GUI and the Arduino communication API, you can accelerate the development process significantly. So feel encouraged to make use of the user interface during your work.
+The possibility to visualize real-time data and communicate with the Arduino is very useful regarding the development process. If you've understood how to define a communication interface and how to use the GUI and the Arduino communication API, you can accelerate the development process significantly. So feel encouraged to make use of the user interface during your work.
 
 # Communication
 The communication between both instances takes place using Bluetooth and is defined in a global [interface file](interface.json) according to the JSON format.
